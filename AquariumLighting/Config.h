@@ -13,11 +13,10 @@
 #define RGB_DATA_PIN               27      // GPIO27 drives the strip's Data-In
 #define RGB_LED_COUNT              30      // <-- CHANGE THIS to match your strip's pixel count
 // Byte order on the data wire - must match your specific strip's chip, not
-// just "WS2812B" as a family. Observed symptom of the wrong order: a
-// single-channel color (e.g. Blue-only) lights up a different-colored LED
-// (e.g. Green) instead. If colors still look swapped, try the other 5
-// permutations: NEO_RGB, NEO_RBG, NEO_GRB, NEO_GBR, NEO_BRG, NEO_BGR.
-#define RGB_LED_TYPE               (NEO_GBR + NEO_KHZ800)
+// just "WS2812B" as a family. Solved from field testing: Blue-only lit
+// Green under NEO_GRB, then Red under NEO_GBR - working the permutation
+// back from those two results gives the strip's true order as BRG.
+#define RGB_LED_TYPE               (NEO_BRG + NEO_KHZ800)
 
 // ---- On/Off + preset-cycling switch ----
 #define SWITCH_PIN                 19      // Switch wired between this pin and GND (internal pull-up used)
