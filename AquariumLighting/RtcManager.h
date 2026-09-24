@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <RTClib.h>
+#include "Config.h"
 
 // Wraps the DS3231 real-time clock: keeps time across power cycles/resets
 // and fires a recurring daily alarm used to trigger the evening lighting

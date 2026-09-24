@@ -427,7 +427,7 @@ void WebDashboard::begin(StateManager *stateManager, RtcManager *rtcManager) {
 
   g_server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (!ensureAuth(request)) return;
-    request->send_P(200, "text/html", DASHBOARD_HTML);
+    request->send(200, "text/html", DASHBOARD_HTML);
   });
 
   g_server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request) {
