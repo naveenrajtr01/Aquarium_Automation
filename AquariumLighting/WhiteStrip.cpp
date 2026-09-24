@@ -20,9 +20,12 @@ void WhiteStrip::setBrightnessPercent(uint8_t percent) {
   uint32_t duty =
       (maxDuty * currentPercent) / 100;
 
+  // The dimming circuit inverts the PWM signal (0 duty = physically full
+  // bright, max duty = physically off), so invert here to keep the percent
+  // parameter meaning what it says (0 = off, 100 = full brightness).
   ledcWrite(
       WHITE_LED_PWM_PIN,
-      duty
+      maxDuty - duty
   );
 }
 

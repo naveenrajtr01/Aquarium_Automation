@@ -188,7 +188,10 @@ which writes to both:
 
 - **Presets**: edit the `PRESETS` array in `Presets.cpp`.
 - **Pins / timing / BLE UUIDs**: edit `Config.h`.
-- **Switch debounce window**: `SWITCH_DEBOUNCE_MS` in `Config.h` (default 150 ms).
+- **Switch debounce window**: `SWITCH_DEBOUNCE_MS` in `Config.h` (default 400 ms).
+  If a light/incidental touch on the switch still causes unwanted toggles
+  after raising this, it's noise pickup on the wire rather than bounce - add
+  a ~100 nF ceramic capacitor between the switch pin and GND.
 - **Schedule time**: `SCHEDULE_HOUR` / `SCHEDULE_MINUTE` / `SCHEDULE_SECOND`
   in `Config.h` (default 18:00:00).
 - **Animation/fade-in durations**: `SCHEDULE_ANIMATION_MS` (default 10 s) and

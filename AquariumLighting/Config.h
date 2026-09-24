@@ -12,16 +12,24 @@
 // ---- Addressable RGB strip (NeoPixel-compatible, e.g. WS2812B) ----
 #define RGB_DATA_PIN               27      // GPIO27 drives the strip's Data-In
 #define RGB_LED_COUNT              30      // <-- CHANGE THIS to match your strip's pixel count
-#define RGB_LED_TYPE               (NEO_GRB + NEO_KHZ800)
+// Byte order on the data wire - must match your specific strip's chip, not
+// just "WS2812B" as a family. Observed symptom of the wrong order: a
+// single-channel color (e.g. Blue-only) lights up a different-colored LED
+// (e.g. Green) instead. If colors still look swapped, try the other 5
+// permutations: NEO_RGB, NEO_RBG, NEO_GRB, NEO_GBR, NEO_BRG, NEO_BGR.
+#define RGB_LED_TYPE               (NEO_GBR + NEO_KHZ800)
 
 // ---- On/Off + preset-cycling switch ----
 #define SWITCH_PIN                 19      // Switch wired between this pin and GND (internal pull-up used)
 // Mechanical debounce window: the raw reading must stay stable for this long
-// before a transition is accepted. Kept generous (well above typical <20ms
-// contact bounce) so a single physical flip can't be seen as multiple
-// open/close events, which would otherwise fire extra preset-advances or
-// delay the light from turning off promptly.
-#define SWITCH_DEBOUNCE_MS         150UL
+// before a transition is accepted. Raised well above typical <20ms contact
+// bounce so a light/incidental touch (which can leave the pin noisy or
+// briefly mis-read for a while, especially with the ESP32's weak internal
+// pull-up) doesn't get mistaken for a deliberate flip. If unwanted toggles
+// still happen, it points to noise pickup on the switch wire rather than
+// bounce - fix in hardware with a ~100 nF ceramic capacitor between
+// SWITCH_PIN and GND, right at the pin.
+#define SWITCH_DEBOUNCE_MS         400UL
 
 // ---- Buzzer (mode-change feedback) ----
 #define BUZZER_PIN                 32      // Active-high buzzer module
