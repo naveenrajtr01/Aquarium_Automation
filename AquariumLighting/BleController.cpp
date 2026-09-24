@@ -128,8 +128,11 @@ void BleController::begin(
   g_server = BLEDevice::createServer();
   g_server->setCallbacks(new ServerCallbacks());
 
+  // Default handle count (15) isn't enough for 8 characteristics plus their
+  // CCCD descriptors (~24 needed) - characteristics past the limit are
+  // silently never registered, so they'd be invisible to any BLE client.
   BLEService *service =
-      g_server->createService(SERVICE_UUID);
+      g_server->createService(BLEUUID(SERVICE_UUID), 40);
 
   g_onOffChar = service->createCharacteristic(
       CHAR_ONOFF_UUID,
@@ -222,6 +225,12 @@ void BleController::begin(
 
   advertising->addServiceUUID(SERVICE_UUID);
   advertising->setScanResponse(true);
+
+  // Preferred connection parameters within Apple's accessory guidelines -
+  // without this, iOS frequently tears the connection down shortly after
+  // connecting because the default params don't meet its requirements.
+  advertising->setMinPreferred(0x06);
+  advertising->setMaxPreferred(0x12);
 
   BLEDevice::startAdvertising();
 
