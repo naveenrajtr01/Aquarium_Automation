@@ -17,6 +17,13 @@ public:
   void setColorPercent(uint8_t redPercent, uint8_t greenPercent, uint8_t bluePercent);
   void off();
 
+  // Raw per-pixel control (0-255 per channel) used by the schedule
+  // animation. Bypasses the tracked percent values - call setColorPercent()
+  // afterwards to return to normal uniform-color operation.
+  void setPixelRGB(uint16_t index, uint8_t r, uint8_t g, uint8_t b);
+  void show();
+  uint16_t pixelCount() const;
+
   uint8_t getRedPercent() const { return currentRedPercent; }
   uint8_t getGreenPercent() const { return currentGreenPercent; }
   uint8_t getBluePercent() const { return currentBluePercent; }

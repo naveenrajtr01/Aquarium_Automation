@@ -11,17 +11,39 @@
 #define WHITE_PWM_RESOLUTION_BITS  8       // 0-255 duty range
 
 // ---- Addressable RGB strip (NeoPixel-compatible, e.g. WS2812B) ----
-#define RGB_DATA_PIN               26      // GPIO26 drives the strip's Data-In
+#define RGB_DATA_PIN               27      // GPIO27 drives the strip's Data-In
 #define RGB_LED_COUNT              30      // <-- CHANGE THIS to match your strip's pixel count
 #define RGB_LED_TYPE               (NEO_GRB + NEO_KHZ800)
 
 // ---- On/Off + preset-cycling switch ----
-#define SWITCH_PIN                 27      // Switch wired between this pin and GND (internal pull-up used)
+#define SWITCH_PIN                 19      // Switch wired between this pin and GND (internal pull-up used)
 #define SWITCH_DEBOUNCE_MS         50UL    // Mechanical debounce window
 // If the switch is closed (light back ON) within this long after being opened,
 // it counts as a "quick toggle" and advances to the next preset. Any longer gap
 // (e.g. lights left off overnight) restores the last-used preset instead.
 #define QUICK_TOGGLE_THRESHOLD_MS  (5UL * 60UL * 1000UL)  // 5 minutes
+
+// ---- Buzzer (mode-change feedback) ----
+#define BUZZER_PIN                 32      // Active-high buzzer module
+#define BUZZER_BEEP_MS             500UL   // Beep length on any mode change
+
+// ---- DS3231 real-time clock (I2C) ----
+#define RTC_SDA_PIN                21
+#define RTC_SCL_PIN                22
+
+// ---- Daily lighting schedule (DS3231 alarm) ----
+// At this time every day, the light (if the switch is ON) plays a short RGB
+// animation, then settles into SCHEDULE_DEFAULT_PRESET_INDEX, gradually
+// glowing up from off. If the switch is OFF when the alarm fires, the
+// sequence is queued and runs as soon as the switch is turned back on.
+#define SCHEDULE_HOUR              18      // 24-hour format - 18 = 6:00 PM
+#define SCHEDULE_MINUTE            0
+#define SCHEDULE_SECOND            0
+#define SCHEDULE_ANIMATION_MS      10000UL // rainbow animation duration
+#define SCHEDULE_ANIMATION_FRAME_MS   30UL // redraw interval during the animation
+#define SCHEDULE_ANIMATION_ROTATE_MS   8UL // ms per hue-wheel step (lower = faster spin)
+#define SCHEDULE_FADEIN_MS         2000UL  // gradual glow-up duration after the animation
+#define SCHEDULE_DEFAULT_PRESET_INDEX 0    // preset applied after the scheduled animation
 
 // ---- Presets ----
 #define NUM_PRESETS                3
@@ -41,3 +63,5 @@
 #define CHAR_RED_UUID      "6c6468b6-7a0d-4c16-88be-8f8bce4a0e68"  // read+write+notify, uint8 0-100 (%)
 #define CHAR_GREEN_UUID    "df416687-5b23-4be2-a479-ca5abbea83f4"  // read+write+notify, uint8 0-100 (%)
 #define CHAR_BLUE_UUID     "73d9d82e-de50-424b-b91b-bd90e502758a"  // read+write+notify, uint8 0-100 (%)
+#define CHAR_SETTIME_UUID  "8f2ac0d1-3e1a-4c8b-9a2f-6b1d5e8c4a2b"  // write, uint32 little-endian Unix epoch seconds
+#define CHAR_LOG_UUID      "b3d9a6e2-7c44-4b6a-9a3d-1f6e2c9a7d10"  // read+notify, UTF-8 text log line (mirrors Serial output)

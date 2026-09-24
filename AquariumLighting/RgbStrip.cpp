@@ -28,3 +28,15 @@ void RgbStrip::setColorPercent(uint8_t redPercent, uint8_t greenPercent, uint8_t
 void RgbStrip::off() {
   setColorPercent(0, 0, 0);
 }
+
+void RgbStrip::setPixelRGB(uint16_t index, uint8_t r, uint8_t g, uint8_t b) {
+  strip.setPixelColor(index, strip.Color(r, g, b));
+}
+
+void RgbStrip::show() {
+  strip.show();
+}
+
+uint16_t RgbStrip::pixelCount() const {
+  return strip.numPixels();
+}

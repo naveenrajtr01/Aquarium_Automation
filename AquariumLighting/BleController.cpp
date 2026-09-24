@@ -4,10 +4,12 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 #include "Config.h"
+#include "Logger.h"
 
 namespace {
 
 StateManager *g_stateManager = nullptr;
+RtcManager *g_rtcManager = nullptr;
 
 BLEServer *g_server = nullptr;
 BLECharacteristic *g_onOffChar = nullptr;
@@ -16,6 +18,8 @@ BLECharacteristic *g_whiteChar = nullptr;
 BLECharacteristic *g_redChar = nullptr;
 BLECharacteristic *g_greenChar = nullptr;
 BLECharacteristic *g_blueChar = nullptr;
+BLECharacteristic *g_setTimeChar = nullptr;
+BLECharacteristic *g_logChar = nullptr;
 
 void writeUint8AndNotify(BLECharacteristic *ch, uint8_t value) {
   ch->setValue(&value, 1);
@@ -25,7 +29,11 @@ void writeUint8AndNotify(BLECharacteristic *ch, uint8_t value) {
 // Restart advertising after a client disconnects (the ESP32 BLE stack does
 // not do this automatically), so the app can always reconnect.
 class ServerCallbacks : public BLEServerCallbacks {
+  void onConnect(BLEServer *server) override {
+    Logger::log("BLE client connected");
+  }
   void onDisconnect(BLEServer *server) override {
+    Logger::log("BLE client disconnected - resuming advertising");
     server->getAdvertising()->start();
   }
 };
@@ -44,7 +52,10 @@ public:
     std::string value = characteristic->getValue();
     if (value.empty()) return;
     uint8_t requested = static_cast<uint8_t>(value[0]);
-    (g_stateManager->*setter)(requested);
+    bool applied = (g_stateManager->*setter)(requested);
+    if (!applied) {
+      Logger::logf("BLE write rejected (%u%%) - light is off", requested);
+    }
     writeUint8AndNotify(characteristic, (g_stateManager->*getter)());
   }
 
@@ -53,12 +64,37 @@ private:
   uint8_t (StateManager::*getter)() const;
 };
 
+// Write-only: forwards a little-endian uint32 Unix epoch to RtcManager. Used
+// by the app (with an NTP-accurate phone clock) to set the DS3231 precisely,
+// working around upload-latency skew in a compile-time set.
+class SetTimeCallback : public BLECharacteristicCallbacks {
+public:
+  explicit SetTimeCallback(RtcManager *rtcManager) : rtcManager(rtcManager) {}
+
+  void onWrite(BLECharacteristic *characteristic) override {
+    if (!rtcManager) return;
+    std::string value = characteristic->getValue();
+    if (value.size() < 4) return;
+    uint32_t epochSeconds =
+        (uint32_t)(uint8_t)value[0] |
+        ((uint32_t)(uint8_t)value[1] << 8) |
+        ((uint32_t)(uint8_t)value[2] << 16) |
+        ((uint32_t)(uint8_t)value[3] << 24);
+    rtcManager->setEpoch(epochSeconds);
+  }
+
+private:
+  RtcManager *rtcManager;
+};
+
 } // namespace
 
-void BleController::begin(StateManager *stateManager) {
+void BleController::begin(StateManager *stateManager, RtcManager *rtcManager) {
   g_stateManager = stateManager;
+  g_rtcManager = rtcManager;
 
   BLEDevice::init(BLE_DEVICE_NAME);
+  BLEDevice::setMTU(185); // allow log lines longer than the default 20-byte notify payload
   g_server = BLEDevice::createServer();
   g_server->setCallbacks(new ServerCallbacks());
 
@@ -96,12 +132,23 @@ void BleController::begin(StateManager *stateManager) {
   g_blueChar->addDescriptor(new BLE2902());
   g_blueChar->setCallbacks(new PercentWriteCallback(&StateManager::setBluePercent, &StateManager::getBluePercent));
 
+  g_setTimeChar = service->createCharacteristic(
+    CHAR_SETTIME_UUID, BLECharacteristic::PROPERTY_WRITE);
+  g_setTimeChar->setCallbacks(new SetTimeCallback(g_rtcManager));
+
+  g_logChar = service->createCharacteristic(
+    CHAR_LOG_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+  g_logChar->addDescriptor(new BLE2902());
+
   service->start();
 
   BLEAdvertising *advertising = BLEDevice::getAdvertising();
   advertising->addServiceUUID(SERVICE_UUID);
   advertising->setScanResponse(true);
   BLEDevice::startAdvertising();
+
+  Logger::attachBleCharacteristic(g_logChar);
+  Logger::log("BLE advertising as '" BLE_DEVICE_NAME "'");
 
   refreshAll();
 }
