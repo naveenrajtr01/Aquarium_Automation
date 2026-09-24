@@ -10,8 +10,10 @@
 // Required libraries (install via Arduino IDE Library Manager):
 //   - Adafruit NeoPixel
 //   - RTClib (by Adafruit)
+//   - ESP Async WebServer (by ESP32Async / lacamera)
+//   - Async TCP (by ESP32Async / dvarrel) - ESPAsyncWebServer's dependency
 // Bundled with the ESP32 Arduino core (no install needed):
-//   - Preferences.h, Wire.h, BLEDevice.h and friends
+//   - Preferences.h, Wire.h, BLEDevice.h and friends, WiFi.h, ESPmDNS.h
 // ---------------------------------------------------------------------------
 
 #include "Config.h"
@@ -22,6 +24,7 @@
 #include "RtcManager.h"
 #include "StateManager.h"
 #include "BleController.h"
+#include "WebDashboard.h"
 #include "Logger.h"
 
 WhiteStrip whiteStrip;
@@ -31,6 +34,7 @@ Buzzer buzzer;
 RtcManager rtcManager;
 StateManager stateManager;
 BleController bleController;
+WebDashboard webDashboard;
 
 void setup() {
   Logger::begin(115200);
@@ -58,6 +62,11 @@ void setup() {
   stateManager.applyInitialState(switchInput.isClosed());
 
   bleController.begin(&stateManager, &rtcManager);
+
+  // Web dashboard is entirely additive - separate from and does not change
+  // the BLE control path above.
+  webDashboard.begin(&stateManager, &rtcManager);
+
   Logger::log("Setup complete");
 }
 
@@ -81,6 +90,8 @@ void loop() {
   }
 
   stateManager.update();
+
+  webDashboard.update();
 
   // The scheduled animation's fade-in changes white/RGB values continuously;
   // throttle how often that reaches BLE so the notify queue isn't flooded.

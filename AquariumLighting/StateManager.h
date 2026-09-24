@@ -42,6 +42,10 @@ public:
   bool setGreenPercent(uint8_t percent);
   bool setBluePercent(uint8_t percent);
 
+  // Directly selects a preset (used by the web dashboard's preset buttons).
+  // Only applies while the light is on; returns false (no-op) otherwise.
+  bool setPresetIndex(uint8_t index);
+
   // BLE read accessors - always reflect what the strips currently show (or,
   // while off, what they will show again once switched back on).
   bool isOn() const { return lightOn; }

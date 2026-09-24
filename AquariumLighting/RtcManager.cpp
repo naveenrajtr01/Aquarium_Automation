@@ -1,5 +1,6 @@
 #include "RtcManager.h"
 #include <Wire.h>
+#include <Preferences.h>
 #include "Config.h"
 #include "Logger.h"
 
@@ -15,13 +16,8 @@ void RtcManager::begin() {
   }
   Logger::logf("RTC current time: %s", rtc.now().timestamp().c_str());
 
-  // DS3231_A1_Hour matches hour/minute/second only (ignores date), so this
-  // alarm re-fires every day at SCHEDULE_HOUR:SCHEDULE_MINUTE:SCHEDULE_SECOND
-  // without needing to be reprogrammed.
-  rtc.setAlarm1(
-    DateTime(2000, 1, 1, SCHEDULE_HOUR, SCHEDULE_MINUTE, SCHEDULE_SECOND),
-    DS3231_A1_Hour);
-  Logger::logf("RTC daily alarm armed for %02d:%02d:%02d", SCHEDULE_HOUR, SCHEDULE_MINUTE, SCHEDULE_SECOND);
+  loadScheduleFromStorage();
+  armAlarm();
 }
 
 void RtcManager::update() {
@@ -43,4 +39,53 @@ bool RtcManager::consumeScheduledTrigger() {
 void RtcManager::setEpoch(uint32_t epochSeconds) {
   rtc.adjust(DateTime(epochSeconds));
   Logger::logf("RTC time set to %s", rtc.now().timestamp().c_str());
+}
+
+void RtcManager::setScheduleTime(uint8_t hour, uint8_t minute) {
+  if (hour > 23 || minute > 59) return;
+  scheduleHour = hour;
+  scheduleMinute = minute;
+  saveScheduleToStorage();
+  armAlarm();
+}
+
+String RtcManager::getTimeString() {
+  char buf[24];
+  DateTime now = rtc.now();
+  snprintf(buf, sizeof(buf), "%04d-%02d-%02d %02d:%02d:%02d",
+           now.year(), now.month(), now.day(),
+           now.hour(), now.minute(), now.second());
+  return String(buf);
+}
+
+bool RtcManager::isTimeValid() {
+  return !rtc.lostPower();
+}
+
+void RtcManager::loadScheduleFromStorage() {
+  Preferences prefs;
+  prefs.begin(PREFS_NAMESPACE, true); // read-only
+  scheduleHour = prefs.getUChar(PREFS_KEY_SCHEDULE_HOUR, SCHEDULE_HOUR);
+  scheduleMinute = prefs.getUChar(PREFS_KEY_SCHEDULE_MINUTE, SCHEDULE_MINUTE);
+  prefs.end();
+  if (scheduleHour > 23) scheduleHour = SCHEDULE_HOUR;
+  if (scheduleMinute > 59) scheduleMinute = SCHEDULE_MINUTE;
+}
+
+void RtcManager::saveScheduleToStorage() {
+  Preferences prefs;
+  prefs.begin(PREFS_NAMESPACE, false); // read-write
+  prefs.putUChar(PREFS_KEY_SCHEDULE_HOUR, scheduleHour);
+  prefs.putUChar(PREFS_KEY_SCHEDULE_MINUTE, scheduleMinute);
+  prefs.end();
+}
+
+void RtcManager::armAlarm() {
+  // DS3231_A1_Hour matches hour/minute/second only (ignores date), so this
+  // alarm re-fires every day at scheduleHour:scheduleMinute:SCHEDULE_SECOND
+  // without needing to be reprogrammed.
+  rtc.setAlarm1(
+    DateTime(2000, 1, 1, scheduleHour, scheduleMinute, SCHEDULE_SECOND),
+    DS3231_A1_Hour);
+  Logger::logf("RTC daily alarm armed for %02d:%02d:%02d", scheduleHour, scheduleMinute, SCHEDULE_SECOND);
 }

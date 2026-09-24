@@ -5,6 +5,9 @@ Controls a white LED strip (PWM dimmed) and an addressable RGB strip
 
 - A physical on/off + preset-cycling switch
 - A mobile app connected over Bluetooth Low Energy (BLE)
+- A **"Koi Tank Controls" web dashboard**, hosted by the ESP32 itself over
+  WiFi, reachable from any phone browser on your home network - no app
+  install required (see [Web Dashboard](#web-dashboard-koi-tank-controls) below)
 - A DS3231 real-time clock driving a daily evening lighting schedule
 - A buzzer that gives a brief chime on power-on and beeps on every mode change
 
@@ -119,6 +122,56 @@ Notes:
   changes, schedule events, RTC time, every accepted/rejected BLE write,
   etc.) - useful for checking behavior without a USB connection.
 
+## Web Dashboard (Koi Tank Controls)
+
+A fully separate, additive control path - it does not read or modify any BLE
+code, and the two can be used interchangeably at the same time.
+
+1. Set your WiFi credentials in [AquariumLighting/Config.h](AquariumLighting/Config.h):
+   `WIFI_SSID` / `WIFI_PASSWORD`.
+2. After uploading, open the Serial monitor - it logs the IP address and,
+   if mDNS started successfully, a friendly hostname:
+   `http://koitank.local/` (or `http://<esp32-ip>/` if your phone/router
+   doesn't support mDNS - most modern Android/iOS do).
+3. Your phone must be on the **same WiFi network** as the ESP32 (this is a
+   local-network-only dashboard, not exposed to the internet).
+4. Log in with the Basic Auth credentials from `Config.h`
+   (`WEB_AUTH_USERNAME` / `WEB_AUTH_PASSWORD`, default `admin` / `admin`).
+
+Dashboard features:
+
+- **Status**: read-only on/off badge, active preset name, and the current
+  ESP32/DS3231 time. On/off is intentionally **not** a dashboard control -
+  only the physical switch turns the light on/off.
+- **Preset**: buttons to jump directly to any of the 3 presets. Like BLE
+  writes, this **only takes effect while the light is on** - if it's off,
+  the dashboard shows a toast and the request is rejected server-side.
+- **White brightness**: a slider, 0-100%.
+- **RGB color**: a gradient square (drag to pick saturation/brightness) plus
+  a hue slider, similar to the font-color pickers in document editors. The
+  square's vertical axis doubles as brightness - consistent with this
+  project's [existing design](#why-rgb-brightness-is-folded-into-rg-directly)
+  of folding brightness directly into the R/G/B percentages rather than a
+  separate brightness control.
+- **Daily schedule**: an editable time picker (replaces the old
+  compile-time-only `SCHEDULE_HOUR`/`SCHEDULE_MINUTE`) - saving reprograms
+  the DS3231 alarm immediately and persists the new time to flash (NVS), so
+  it survives reboots.
+- **Live logs**: a toggle that opens a WebSocket only while switched on, so
+  log streaming to your phone is fully opt-in and stops the instant you
+  switch it off (same log lines as Serial/BLE, see [Logging](#logging)).
+
+Required libraries (in addition to the BLE ones, see
+[Building & Uploading](#building--uploading-arduino-ide)):
+- **ESPAsyncWebServer** and its dependency **AsyncTCP** (install both via
+  Arduino Library Manager). `WiFi.h`/`ESPmDNS.h` are bundled with the ESP32
+  core.
+
+Known limitation: browsers don't reliably attach cached Basic Auth
+credentials to a WebSocket handshake, so the `/ws/logs` stream's server-side
+auth check may not always succeed even when logged into the page - this is a
+browser API limitation, not a bug in the sketch.
+
 ## Why RGB brightness is folded into R/G/B directly
 
 The Adafruit_NeoPixel library's `setBrightness()` rescales stored pixel data
@@ -145,7 +198,10 @@ AquariumLighting/
                           applies values to WhiteStrip/RgbStrip/Buzzer, validates BLE writes
   BleController.h/.cpp    BLE GATT server: exposes StateManager's state to the app,
                           forwards write/set-time requests, and streams the debug log
-  Logger.h/.cpp           Mirrors log lines to Serial and the Debug Log BLE characteristic
+  WebDashboard.h/.cpp     Hosts the "Koi Tank Controls" WiFi web dashboard (WiFi connect,
+                          HTTP+WebSocket server, Basic Auth, embedded HTML/CSS/JS UI)
+  Logger.h/.cpp           Mirrors log lines to Serial, the Debug Log BLE characteristic,
+                          and (while a client has it open) the dashboard's live log stream
 ```
 
 Responsibilities are kept single-purpose per file so each hardware concern
@@ -174,15 +230,20 @@ which writes to both:
 3. Install the **RTClib** library (by Adafruit; Tools > Manage Libraries,
    search "RTClib", install it and its dependency "Adafruit BusIO" if
    prompted) - used to talk to the DS3231.
-4. `Preferences.h`, `Wire.h` and the `BLEDevice`/`BLEServer`/etc. headers are
-   bundled with the ESP32 core - no separate install needed.
-5. Open `AquariumLighting/AquariumLighting.ino` in the Arduino IDE.
-6. Select your ESP32 board and port under Tools, then Upload.
-7. Adjust `RGB_LED_COUNT` and any pin numbers in `Config.h` to match your
+4. Install **ESPAsyncWebServer** and its dependency **AsyncTCP** (Tools >
+   Manage Libraries, search each by name) - used by the web dashboard.
+5. `Preferences.h`, `Wire.h`, `WiFi.h`, `ESPmDNS.h` and the
+   `BLEDevice`/`BLEServer`/etc. headers are bundled with the ESP32 core - no
+   separate install needed.
+6. Open `AquariumLighting/AquariumLighting.ino` in the Arduino IDE.
+7. Set `WIFI_SSID`/`WIFI_PASSWORD` in `Config.h` for the web dashboard (see
+   [Web Dashboard](#web-dashboard-koi-tank-controls) above).
+8. Select your ESP32 board and port under Tools, then Upload.
+9. Adjust `RGB_LED_COUNT` and any pin numbers in `Config.h` to match your
    hardware before uploading.
-8. After the first upload, write the current time to the **Set Time** BLE
-   characteristic from your app so the DS3231 has accurate time (see BLE
-   Protocol above) - the compile-time fallback is only approximate.
+10. After the first upload, write the current time to the **Set Time** BLE
+    characteristic from your app so the DS3231 has accurate time (see BLE
+    Protocol above) - the compile-time fallback is only approximate.
 
 ## Customizing
 
@@ -193,7 +254,11 @@ which writes to both:
   after raising this, it's noise pickup on the wire rather than bounce - add
   a ~100 nF ceramic capacitor between the switch pin and GND.
 - **Schedule time**: `SCHEDULE_HOUR` / `SCHEDULE_MINUTE` / `SCHEDULE_SECOND`
-  in `Config.h` (default 18:00:00).
+  in `Config.h` are the first-boot defaults (18:00:00) - once set via the web
+  dashboard's schedule editor, the chosen hour/minute is persisted to flash
+  (NVS) and takes over from then on.
+- **Web dashboard credentials/branding**: `WEB_AUTH_USERNAME`,
+  `WEB_AUTH_PASSWORD`, `DASHBOARD_MDNS_HOSTNAME` in `Config.h`.
 - **Animation/fade-in durations**: `SCHEDULE_ANIMATION_MS` (default 10 s) and
   `SCHEDULE_FADEIN_MS` (default 2 s) in `Config.h`.
 - **Preset applied after the schedule animation**:

@@ -58,6 +58,19 @@
 // ---- Persistent storage (NVS via Preferences) ----
 #define PREFS_NAMESPACE            "aqualight"
 #define PREFS_KEY_PRESET_INDEX     "presetIdx"
+#define PREFS_KEY_SCHEDULE_HOUR    "schedHour"
+#define PREFS_KEY_SCHEDULE_MINUTE  "schedMin"
+
+// ---- WiFi (for the on-device web dashboard) ----
+#define WIFI_SSID                  "YOUR_WIFI_SSID"      // <-- CHANGE THIS
+#define WIFI_PASSWORD              "YOUR_WIFI_PASSWORD"  // <-- CHANGE THIS
+
+// ---- Web dashboard (local network only, separate from BLE) ----
+#define WEB_SERVER_PORT            80
+#define WEB_AUTH_USERNAME          "admin"
+#define WEB_AUTH_PASSWORD          "admin"
+#define DASHBOARD_TITLE            "Koi Tank Controls"
+#define DASHBOARD_MDNS_HOSTNAME    "koitank"              // http://koitank.local/
 
 // ---- Bluetooth Low Energy ----
 #define BLE_DEVICE_NAME            "Aquarium Light"

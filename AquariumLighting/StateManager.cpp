@@ -190,6 +190,20 @@ bool StateManager::setBluePercent(uint8_t percent) {
   return true;
 }
 
+bool StateManager::setPresetIndex(uint8_t index) {
+  if (!lightOn) return false;
+  if (index >= NUM_PRESETS) return false;
+
+  presetIndex = index;
+  savePresetIndexToStorage();
+  if (buzzer) buzzer->beep();
+  applyPresetValues();
+  phase = Phase::Normal;
+  pushValuesToOutputs();
+  Logger::logf("Preset set directly to %d (%s)", presetIndex, PRESETS[presetIndex].name);
+  return true;
+}
+
 void StateManager::loadPresetIndexFromStorage() {
   Preferences prefs;
   prefs.begin(PREFS_NAMESPACE, true); // read-only

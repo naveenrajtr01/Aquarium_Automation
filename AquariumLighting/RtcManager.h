@@ -28,7 +28,25 @@ public:
   // sends is what the schedule alarm hour/minute/second are compared in.
   void setEpoch(uint32_t epochSeconds);
 
+  // Runtime-adjustable daily schedule, persisted in NVS (falls back to
+  // Config.h's SCHEDULE_HOUR/SCHEDULE_MINUTE on first boot). Re-arms the
+  // DS3231 alarm immediately.
+  void setScheduleTime(uint8_t hour, uint8_t minute);
+  uint8_t getScheduleHour() const { return scheduleHour; }
+  uint8_t getScheduleMinute() const { return scheduleMinute; }
+
+  // Current time as "YYYY-MM-DD HH:MM:SS". isTimeValid() is false if the
+  // RTC has never been set accurately (still on the compile-time fallback).
+  String getTimeString();
+  bool isTimeValid();
+
 private:
+  void loadScheduleFromStorage();
+  void saveScheduleToStorage();
+  void armAlarm();
+
   RTC_DS3231 rtc;
   bool alarmPending = false;
+  uint8_t scheduleHour = SCHEDULE_HOUR;
+  uint8_t scheduleMinute = SCHEDULE_MINUTE;
 };
