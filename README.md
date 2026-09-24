@@ -6,7 +6,7 @@ Controls a white LED strip (PWM dimmed) and an addressable RGB strip
 - A physical on/off + preset-cycling switch
 - A mobile app connected over Bluetooth Low Energy (BLE)
 - A DS3231 real-time clock driving a daily evening lighting schedule
-- A buzzer that beeps on every mode change
+- A buzzer that gives a brief chime on power-on and beeps on every mode change
 
 Sketch folder: [AquariumLighting/](AquariumLighting)
 
@@ -17,7 +17,7 @@ Sketch folder: [AquariumLighting/](AquariumLighting)
 | White strip PWM out     | GPIO25       | Feeds your custom PWM dimming circuit, not the LED strip directly. Driven via `ledcSetup`/`ledcWrite` |
 | RGB strip Data In       | GPIO27       | Direct digital data line to the addressable strip (30 pixels)       |
 | On/Off + preset switch  | GPIO19       | Wire between the pin and GND. Internal pull-up is used in firmware  |
-| Buzzer                  | GPIO32       | Active-high buzzer module, beeps 500 ms on any mode change          |
+| Buzzer                  | GPIO32       | Active-high buzzer module, beeps 300 ms on power-on and any mode change |
 | DS3231 SDA / SCL        | GPIO21 / 22  | I2C connection to the real-time clock module                       |
 
 Change any of these in [AquariumLighting/Config.h](AquariumLighting/Config.h) if your wiring differs.
@@ -27,22 +27,17 @@ Also set `RGB_LED_COUNT` in `Config.h` to match the number of pixels on your str
 
 ### Switch (on/off + preset cycling)
 
-- Switch **open** -> both strips off.
-- Switch **closed** -> both strips on, showing the active preset.
-- If you open and close the switch again **within 5 minutes**
-  (`QUICK_TOGGLE_THRESHOLD_MS` in `Config.h`), it's treated as a deliberate
-  "next preset" gesture: the controller advances to the next of the 3
-  presets (wrapping around) and stores the new index in flash (NVS).
-- If the switch is closed after being open **longer** than that (e.g. lights
-  left off overnight), the controller does **not** advance the preset - it
-  simply restores the last-used preset.
-- On power-up/reboot, the controller always behaves like the "long time off"
-  case: it restores the stored preset and never advances it, regardless of
-  which position the switch happens to be in at boot.
-- The switch's **closed** position is always ON and **open** is always OFF;
-  lights only ever glow while the switch is closed.
-- Every preset change (manual quick-toggle or the automatic schedule below)
-  triggers a 500 ms buzzer beep.
+- Switch **open** (not connected to GND) -> both strips off, always.
+- Switch **closed** (connected to GND) -> both strips on, always.
+- Every time the switch is closed (light turning back on), the controller
+  advances to the next of the 3 presets (wrapping around) and stores the new
+  index in flash (NVS) - a deliberate "next preset" step on every on-cycle.
+- On power-up/reboot, the controller restores the last-stored preset without
+  advancing it, regardless of which position the switch happens to be in at
+  boot.
+- Every preset change (switch-triggered or the automatic schedule below)
+  triggers a 300 ms buzzer beep. The board also gives a single 300 ms beep
+  on power-on/reset.
 
 ### Daily schedule (DS3231 alarm)
 
@@ -78,7 +73,9 @@ to change the 3 default presets (`Daylight`, `Sunset`, `Moonlight`).
 - The app can read: on/off state, active preset index, and the current
   white/red/green/blue percentages (0-100 each).
 
-See BLE protocol details below.
+See BLE protocol details below. For step-by-step instructions on reading/
+writing values and viewing logs with Nordic's nRF Connect app (iOS), see
+[NRF_CONNECT_GUIDE.md](NRF_CONNECT_GUIDE.md).
 
 ## BLE Protocol
 
@@ -102,6 +99,10 @@ All values are a single unsigned byte (`uint8`).
 Notes:
 - All read/notify characteristics have a CCCD (`0x2902`) so an app can
   subscribe to notifications and stay in sync without polling.
+- Every value change - switch on/off, preset changes, BLE writes, and the
+  scheduled animation/fade-in (throttled to every ~150 ms while it's actively
+  ramping) - is pushed to all read/notify characteristics, so a subscribed
+  app always converges to the true current state.
 - Writing to White/Red/Green/Blue while the light is off is rejected: the
   characteristic is reset back to its actual current value and no change is
   applied - so the app should treat a notify-without-matching-write as "my
@@ -115,8 +116,8 @@ Notes:
   once after pairing (and any time you suspect drift).
 - **Debug Log**: subscribe to this characteristic to receive the same log
   lines that are printed to the Serial monitor (setup steps, switch/preset
-  changes, schedule events, RTC time, rejected writes, etc.) - useful for
-  checking behavior without a USB connection.
+  changes, schedule events, RTC time, every accepted/rejected BLE write,
+  etc.) - useful for checking behavior without a USB connection.
 
 ## Why RGB brightness is folded into R/G/B directly
 
@@ -136,7 +137,7 @@ AquariumLighting/
   WhiteStrip.h/.cpp       PWM control of the white LED strip via ESP32 LEDC
   RgbStrip.h/.cpp         Addressable RGB strip control via Adafruit_NeoPixel
   SwitchInput.h/.cpp      Debounced on/off switch reader, reports TurnedOn/TurnedOff events
-  Buzzer.h/.cpp           Non-blocking 500 ms beep on mode changes
+  Buzzer.h/.cpp           Non-blocking 300 ms beep on power-on and mode changes
   RtcManager.h/.cpp       DS3231 wrapper: time keeping, BLE-driven time set, daily alarm
   Presets.h/.cpp          The 3 preset definitions (white % + RGB %)
   StateManager.h/.cpp     Core logic: preset selection/cycling, persistence (NVS),
@@ -187,12 +188,11 @@ which writes to both:
 
 - **Presets**: edit the `PRESETS` array in `Presets.cpp`.
 - **Pins / timing / BLE UUIDs**: edit `Config.h`.
-- **Quick-toggle window** (how long a "deliberate" preset-cycle press can be):
-  `QUICK_TOGGLE_THRESHOLD_MS` in `Config.h`.
+- **Switch debounce window**: `SWITCH_DEBOUNCE_MS` in `Config.h` (default 150 ms).
 - **Schedule time**: `SCHEDULE_HOUR` / `SCHEDULE_MINUTE` / `SCHEDULE_SECOND`
   in `Config.h` (default 18:00:00).
 - **Animation/fade-in durations**: `SCHEDULE_ANIMATION_MS` (default 10 s) and
   `SCHEDULE_FADEIN_MS` (default 2 s) in `Config.h`.
 - **Preset applied after the schedule animation**:
   `SCHEDULE_DEFAULT_PRESET_INDEX` in `Config.h` (default `0`).
-- **Buzzer beep length**: `BUZZER_BEEP_MS` in `Config.h` (default 500 ms).
+- **Buzzer beep length**: `BUZZER_BEEP_MS` in `Config.h` (default 300 ms).

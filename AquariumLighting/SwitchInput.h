@@ -20,14 +20,8 @@ public:
   // Current debounced state.
   bool isClosed() const { return debouncedClosed; }
 
-  // Valid right after a TurnedOn event: how long the switch was open before
-  // closing again.
-  unsigned long getLastOffDurationMs() const { return lastOffDurationMs; }
-
 private:
   bool debouncedClosed = false;
   bool lastRawClosed = false;
   unsigned long lastChangeTime = 0;
-  unsigned long openedAt = 0;
-  unsigned long lastOffDurationMs = 0;
 };

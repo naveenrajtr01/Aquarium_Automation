@@ -46,6 +46,7 @@ void setup() {
   Logger::logf("Switch ready (GPIO19, currently %s)", switchInput.isClosed() ? "CLOSED/ON" : "OPEN/OFF");
 
   buzzer.begin();
+  buzzer.beep(); // brief power-on chime
   Logger::log("Buzzer ready (GPIO32)");
 
   rtcManager.begin();
@@ -67,7 +68,7 @@ void loop() {
     stateManager.handleSwitchTurnedOff();
     bleController.refreshAll();
   } else if (event == SwitchEvent::TurnedOn) {
-    stateManager.handleSwitchTurnedOn(switchInput.getLastOffDurationMs());
+    stateManager.handleSwitchTurnedOn();
     bleController.refreshAll();
   }
 
@@ -80,5 +81,14 @@ void loop() {
   }
 
   stateManager.update();
+
+  // The scheduled animation's fade-in changes white/RGB values continuously;
+  // throttle how often that reaches BLE so the notify queue isn't flooded.
+  static unsigned long lastAutoRefreshMs = 0;
+  if (stateManager.outputsChanged() && (millis() - lastAutoRefreshMs) >= 150) {
+    bleController.refreshAll();
+    stateManager.clearOutputsChanged();
+    lastAutoRefreshMs = millis();
+  }
 }
 

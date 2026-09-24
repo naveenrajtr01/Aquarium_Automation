@@ -46,9 +46,10 @@ class ServerCallbacks : public BLEServerCallbacks {
 class PercentWriteCallback : public BLECharacteristicCallbacks {
 public:
   PercentWriteCallback(
+      const char *name,
       bool (StateManager::*setter)(uint8_t),
       uint8_t (StateManager::*getter)() const)
-      : setter(setter), getter(getter) {}
+      : name(name), setter(setter), getter(getter) {}
 
   void onWrite(BLECharacteristic *characteristic) override {
     if (!g_stateManager) return;
@@ -62,10 +63,12 @@ public:
 
     bool applied = (g_stateManager->*setter)(requested);
 
-    if (!applied) {
+    if (applied) {
+      Logger::logf("BLE write applied: %s = %u%%", name, requested);
+    } else {
       Logger::logf(
-          "BLE write rejected (%u%%) - light is off",
-          requested);
+          "BLE write rejected (%s = %u%%) - light is off",
+          name, requested);
     }
 
     writeUint8AndNotify(
@@ -74,6 +77,7 @@ public:
   }
 
 private:
+  const char *name;
   bool (StateManager::*setter)(uint8_t);
   uint8_t (StateManager::*getter)() const;
 };
@@ -151,6 +155,7 @@ void BleController::begin(
 
   g_whiteChar->setCallbacks(
       new PercentWriteCallback(
+          "White",
           &StateManager::setWhiteBrightnessPercent,
           &StateManager::getWhitePercent));
 
@@ -164,6 +169,7 @@ void BleController::begin(
 
   g_redChar->setCallbacks(
       new PercentWriteCallback(
+          "Red",
           &StateManager::setRedPercent,
           &StateManager::getRedPercent));
 
@@ -177,6 +183,7 @@ void BleController::begin(
 
   g_greenChar->setCallbacks(
       new PercentWriteCallback(
+          "Green",
           &StateManager::setGreenPercent,
           &StateManager::getGreenPercent));
 
@@ -190,6 +197,7 @@ void BleController::begin(
 
   g_blueChar->setCallbacks(
       new PercentWriteCallback(
+          "Blue",
           &StateManager::setBluePercent,
           &StateManager::getBluePercent));
 

@@ -48,7 +48,7 @@ void StateManager::handleSwitchTurnedOff() {
   Logger::log("Switch OFF -> lights off");
 }
 
-void StateManager::handleSwitchTurnedOn(unsigned long offDurationMs) {
+void StateManager::handleSwitchTurnedOn() {
   lightOn = true;
 
   if (scheduledPending) {
@@ -58,16 +58,12 @@ void StateManager::handleSwitchTurnedOn(unsigned long offDurationMs) {
     return;
   }
 
-  if (offDurationMs < QUICK_TOGGLE_THRESHOLD_MS) {
-    presetIndex = (presetIndex + 1) % NUM_PRESETS;
-    savePresetIndexToStorage();
-    if (buzzer) buzzer->beep();
-    Logger::logf("Switch ON (quick toggle, %lu ms) -> next preset %d (%s)",
-                 offDurationMs, presetIndex, PRESETS[presetIndex].name);
-  } else {
-    Logger::logf("Switch ON (was off %lu ms) -> restoring preset %d (%s)",
-                 offDurationMs, presetIndex, PRESETS[presetIndex].name);
-  }
+  // Every off->on transition deliberately advances to the next preset.
+  presetIndex = (presetIndex + 1) % NUM_PRESETS;
+  savePresetIndexToStorage();
+  if (buzzer) buzzer->beep();
+  Logger::logf("Switch ON -> next preset %d (%s)", presetIndex, PRESETS[presetIndex].name);
+
   // Any BLE customization made before the light was switched off is
   // discarded here - applyPresetValues() resets to the stored preset.
   applyPresetValues();
@@ -93,6 +89,7 @@ void StateManager::startScheduledSequence() {
   lastAnimationFrameMs = 0;
   whitePercent = 0;
   whiteStrip->off();
+  outputsDirty = true;
   Logger::log("Scheduled animation started (10s)");
 }
 
@@ -219,9 +216,11 @@ void StateManager::applyPresetValues() {
 void StateManager::pushValuesToOutputs() {
   whiteStrip->setBrightnessPercent(whitePercent);
   rgbStrip->setColorPercent(redPercent, greenPercent, bluePercent);
+  outputsDirty = true;
 }
 
 void StateManager::pushOffToOutputs() {
   whiteStrip->off();
   rgbStrip->off();
+  outputsDirty = true;
 }

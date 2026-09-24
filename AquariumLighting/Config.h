@@ -6,7 +6,6 @@
 
 // ---- White LED strip (PWM via custom dimming circuit) ----
 #define WHITE_LED_PWM_PIN          25      // GPIO25 / D25
-#define WHITE_PWM_CHANNEL          0       // ESP32 LEDC channel
 #define WHITE_PWM_FREQ_HZ          5000    // PWM frequency, flicker-free for most dimmer circuits
 #define WHITE_PWM_RESOLUTION_BITS  8       // 0-255 duty range
 
@@ -17,15 +16,16 @@
 
 // ---- On/Off + preset-cycling switch ----
 #define SWITCH_PIN                 19      // Switch wired between this pin and GND (internal pull-up used)
-#define SWITCH_DEBOUNCE_MS         50UL    // Mechanical debounce window
-// If the switch is closed (light back ON) within this long after being opened,
-// it counts as a "quick toggle" and advances to the next preset. Any longer gap
-// (e.g. lights left off overnight) restores the last-used preset instead.
-#define QUICK_TOGGLE_THRESHOLD_MS  (5UL * 60UL * 1000UL)  // 5 minutes
+// Mechanical debounce window: the raw reading must stay stable for this long
+// before a transition is accepted. Kept generous (well above typical <20ms
+// contact bounce) so a single physical flip can't be seen as multiple
+// open/close events, which would otherwise fire extra preset-advances or
+// delay the light from turning off promptly.
+#define SWITCH_DEBOUNCE_MS         150UL
 
 // ---- Buzzer (mode-change feedback) ----
 #define BUZZER_PIN                 32      // Active-high buzzer module
-#define BUZZER_BEEP_MS             500UL   // Beep length on any mode change
+#define BUZZER_BEEP_MS             300UL   // Beep length on power-on and any mode change
 
 // ---- DS3231 real-time clock (I2C) ----
 #define RTC_SDA_PIN                21

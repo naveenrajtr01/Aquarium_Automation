@@ -18,7 +18,7 @@ public:
 
   // Switch transition handlers (call from loop() when SwitchInput reports them).
   void handleSwitchTurnedOff();
-  void handleSwitchTurnedOn(unsigned long offDurationMs);
+  void handleSwitchTurnedOn();
 
   // Call from loop() whenever RtcManager reports the daily schedule alarm
   // fired. If the switch is off, the sequence is queued and runs as soon as
@@ -28,6 +28,12 @@ public:
   // Call every loop() iteration - advances any in-progress scheduled
   // animation/fade-in. No-op the rest of the time.
   void update();
+
+  // True if white/RGB/preset output values changed since the last call to
+  // clearOutputsChanged() - lets loop() know BLE notifications are stale
+  // (e.g. during/after the scheduled animation's fade-in).
+  bool outputsChanged() const { return outputsDirty; }
+  void clearOutputsChanged() { outputsDirty = false; }
 
   // BLE write requests. Return true if applied, false if rejected (light off).
   // On rejection the tracked/reported value is left unchanged.
@@ -80,4 +86,6 @@ private:
   uint8_t fadeTargetRed = 0;
   uint8_t fadeTargetGreen = 0;
   uint8_t fadeTargetBlue = 0;
+
+  bool outputsDirty = false;
 };
