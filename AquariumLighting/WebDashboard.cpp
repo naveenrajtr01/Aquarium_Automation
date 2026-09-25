@@ -1146,9 +1146,7 @@ void WebDashboard::begin(StateManager *stateManager, RtcManager *rtcManager) {
       uint8_t r = (uint8_t)request->getParam("red", true)->value().toInt();
       uint8_t g = (uint8_t)request->getParam("green", true)->value().toInt();
       uint8_t b = (uint8_t)request->getParam("blue", true)->value().toInt();
-      applied = g_stateManager->setRedPercent(r);
-      applied = g_stateManager->setGreenPercent(g) && applied;
-      applied = g_stateManager->setBluePercent(b) && applied;
+      applied = g_stateManager->setColorPercent(r, g, b);
       Logger::logf("Dashboard write: RGB = %u,%u,%u (%s)", r, g, b, applied ? "applied" : "rejected, light off");
     }
     request->send(200, "application/json", applied ? "{\"applied\":true}" : "{\"applied\":false}");

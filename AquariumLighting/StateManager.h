@@ -43,6 +43,12 @@ public:
   bool setGreenPercent(uint8_t percent);
   bool setBluePercent(uint8_t percent);
 
+  // Sets all three RGB channels in one critical section (used by /api/color,
+  // which receives all three at once) - prefer this over 3 separate calls,
+  // since those let update() run in between them and briefly push a
+  // half-updated color (e.g. new red, still-old green/blue) to the strip.
+  bool setColorPercent(uint8_t redPercent, uint8_t greenPercent, uint8_t bluePercent);
+
   // Directly selects a preset (used by the web dashboard's preset buttons).
   // Only applies while the light is on; returns false (no-op) otherwise.
   bool setPresetIndex(uint8_t index);
@@ -107,7 +113,12 @@ private:
   uint8_t fadeTargetGreen = 0;
   uint8_t fadeTargetBlue = 0;
 
-  bool pendingHwApply = false; // set by web-task setters, applied in update()
+  // Separate per-strip flags (not one combined flag) so a white-only change
+  // doesn't force a needless extra RGB strip retransmission - each WS2812
+  // send is a chance for the known transient bit-glitch (see repo memory)
+  // to strike, so only resend the strip that actually changed.
+  bool pendingWhiteApply = false;
+  bool pendingRgbApply = false;
 
   // RGB channel-balance calibration, live-tunable from the dashboard.
   uint8_t wbRedScale = RGB_CHANNEL_R_SCALE;
@@ -120,7 +131,8 @@ private:
   // RGB_SELF_HEAL_INTERVAL_MS in Config.h.
   unsigned long lastRgbRefreshMs = 0;
 
-  // Guards whitePercent/redPercent/greenPercent/bluePercent/pendingHwApply,
+  // Guards whitePercent/redPercent/greenPercent/bluePercent/pendingWhiteApply/
+  // pendingRgbApply,
   // which are written from the AsyncWebServer callback task (the setters
   // above) and read from the main loop() task (update()). Without this,
   // the four percent fields could be read mid-write - torn across two

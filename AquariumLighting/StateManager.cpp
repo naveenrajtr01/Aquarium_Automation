@@ -95,15 +95,20 @@ void StateManager::startScheduledSequence() {
 }
 
 void StateManager::update() {
-  bool applyNow = false;
+  bool whiteApplyNow = false;
+  bool rgbApplyNow = false;
   bool wbApplyNow = false;
   uint8_t whiteSnap = 0, redSnap = 0, greenSnap = 0, blueSnap = 0;
   uint8_t wbRSnap = 0, wbGSnap = 0, wbBSnap = 0;
   portENTER_CRITICAL(&percentMux);
-  if (pendingHwApply) {
-    pendingHwApply = false;
-    applyNow = true;
+  if (pendingWhiteApply) {
+    pendingWhiteApply = false;
+    whiteApplyNow = true;
     whiteSnap = whitePercent;
+  }
+  if (pendingRgbApply) {
+    pendingRgbApply = false;
+    rgbApplyNow = true;
     redSnap = redPercent;
     greenSnap = greenPercent;
     blueSnap = bluePercent;
@@ -121,18 +126,20 @@ void StateManager::update() {
   }
   portEXIT_CRITICAL(&percentMux);
 
-  if (applyNow && lightOn) {
+  if (whiteApplyNow && lightOn) {
     whiteStrip->setBrightnessPercent(whiteSnap);
-    rgbStrip->setColorPercent(redSnap, greenSnap, blueSnap);
-    lastRgbRefreshMs = millis();
   }
 
-  if (wbApplyNow) {
+  // Only retransmit the RGB strip when its own values actually changed (or
+  // white-balance requires a repaint) - a white-only change used to also
+  // resend the identical RGB frame, which was just another chance for the
+  // transient WS2812 bit-glitch (see repo memory) to strike for no reason.
+  if ((rgbApplyNow || wbApplyNow) && lightOn) {
+    if (wbApplyNow) rgbStrip->setWhiteBalance(wbRSnap, wbGSnap, wbBSnap);
+    rgbStrip->setColorPercent(redSnap, greenSnap, blueSnap);
+    lastRgbRefreshMs = millis();
+  } else if (wbApplyNow) {
     rgbStrip->setWhiteBalance(wbRSnap, wbGSnap, wbBSnap);
-    if (lightOn) {
-      rgbStrip->setColorPercent(redSnap, greenSnap, blueSnap);
-      lastRgbRefreshMs = millis();
-    }
   }
 
   unsigned long now = millis();
@@ -145,7 +152,20 @@ void StateManager::update() {
   if (phase == Phase::Normal && now - lastRgbRefreshMs >= RGB_SELF_HEAL_INTERVAL_MS) {
     lastRgbRefreshMs = now;
     if (lightOn) {
-      rgbStrip->setColorPercent(redPercent, greenPercent, bluePercent);
+      // Snapshot under the mutex - reading the 3 channel fields directly
+      // here (as before) raced against the web task's writes: it could
+      // read e.g. a just-written red alongside a not-yet-written stale
+      // green/blue, briefly showing a color that never should have
+      // existed. Only visible on multi-channel colors (e.g. Sunset,
+      // red+green+blue all nonzero) - a single-channel color like
+      // Moonlight (only blue nonzero) can't produce a mismatched blend.
+      uint8_t rs, gs, bs;
+      portENTER_CRITICAL(&percentMux);
+      rs = redPercent;
+      gs = greenPercent;
+      bs = bluePercent;
+      portEXIT_CRITICAL(&percentMux);
+      rgbStrip->setColorPercent(rs, gs, bs);
     } else {
       rgbStrip->off();
     }
@@ -223,7 +243,7 @@ bool StateManager::setWhiteBrightnessPercent(uint8_t percent) {
   uint8_t clamped = min<uint8_t>(percent, 100);
   portENTER_CRITICAL(&percentMux);
   whitePercent = clamped;
-  pendingHwApply = true;
+  pendingWhiteApply = true;
   portEXIT_CRITICAL(&percentMux);
   return true;
 }
@@ -233,7 +253,7 @@ bool StateManager::setRedPercent(uint8_t percent) {
   uint8_t clamped = min<uint8_t>(percent, 100);
   portENTER_CRITICAL(&percentMux);
   redPercent = clamped;
-  pendingHwApply = true;
+  pendingRgbApply = true;
   portEXIT_CRITICAL(&percentMux);
   return true;
 }
@@ -243,7 +263,7 @@ bool StateManager::setGreenPercent(uint8_t percent) {
   uint8_t clamped = min<uint8_t>(percent, 100);
   portENTER_CRITICAL(&percentMux);
   greenPercent = clamped;
-  pendingHwApply = true;
+  pendingRgbApply = true;
   portEXIT_CRITICAL(&percentMux);
   return true;
 }
@@ -253,7 +273,18 @@ bool StateManager::setBluePercent(uint8_t percent) {
   uint8_t clamped = min<uint8_t>(percent, 100);
   portENTER_CRITICAL(&percentMux);
   bluePercent = clamped;
-  pendingHwApply = true;
+  pendingRgbApply = true;
+  portEXIT_CRITICAL(&percentMux);
+  return true;
+}
+
+bool StateManager::setColorPercent(uint8_t redP, uint8_t greenP, uint8_t blueP) {
+  if (!lightOn) return false;
+  portENTER_CRITICAL(&percentMux);
+  redPercent = min<uint8_t>(redP, 100);
+  greenPercent = min<uint8_t>(greenP, 100);
+  bluePercent = min<uint8_t>(blueP, 100);
+  pendingRgbApply = true;
   portEXIT_CRITICAL(&percentMux);
   return true;
 }
@@ -288,12 +319,13 @@ bool StateManager::setPresetIndex(uint8_t index) {
 
   const Preset &p = PRESETS[presetIndex];
   portENTER_CRITICAL(&percentMux);
+  pendingWhiteApply = true;
+  pendingRgbApply = true;
   whitePercent = p.whitePercent;
   redPercent = p.redPercent;
   greenPercent = p.greenPercent;
   bluePercent = p.bluePercent;
   phase = Phase::Normal;
-  pendingHwApply = true;
   portEXIT_CRITICAL(&percentMux);
   Logger::logf("Preset set directly to %d (%s)", presetIndex, PRESETS[presetIndex].name);
   return true;
