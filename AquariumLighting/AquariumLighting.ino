@@ -95,13 +95,24 @@ void loop() {
   webDashboard.update();
 
   // WiFi connects during webDashboard.begin() and may drop/reconnect later;
-  // report status+IP on a slow cadence rather than flooding the log.
+  // report status+IP/network details on a slow cadence rather than
+  // flooding the log.
   static unsigned long lastWifiLogMs = 0;
   if (millis() - lastWifiLogMs >= 60000UL) {
     lastWifiLogMs = millis();
     bool connected = (WiFi.status() == WL_CONNECTED);
     String ip = connected ? WiFi.localIP().toString() : "Not connected";
-    Logger::logf("WiFi status: %s, IP: %s", connected ? "CONNECTED" : "DISCONNECTED", ip.c_str());
+    if (connected) {
+      Logger::logf(
+          "WiFi status: CONNECTED, IP: %s, Gateway: %s, Subnet: %s, RSSI: %ddBm, MAC: %s",
+          ip.c_str(),
+          WiFi.gatewayIP().toString().c_str(),
+          WiFi.subnetMask().toString().c_str(),
+          WiFi.RSSI(),
+          WiFi.macAddress().c_str());
+    } else {
+      Logger::logf("WiFi status: DISCONNECTED, MAC: %s", WiFi.macAddress().c_str());
+    }
     bleController.updateIpAddress(ip);
   }
 
