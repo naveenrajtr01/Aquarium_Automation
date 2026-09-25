@@ -109,11 +109,27 @@ void StateManager::update() {
   if (applyNow && lightOn) {
     whiteStrip->setBrightnessPercent(whiteSnap);
     rgbStrip->setColorPercent(redSnap, greenSnap, blueSnap);
+    lastRgbRefreshMs = millis();
+  }
+
+  unsigned long now = millis();
+
+  // Steady state (not mid-animation/fade-in, which already redraw every
+  // frame): periodically re-send the RGB strip's current color - on or off -
+  // so a transient WS2812 transmission glitch (a stray lit pixel/patch that
+  // sticks until the next full re-send) self-heals without needing the user
+  // to toggle the switch or reselect the preset.
+  if (phase == Phase::Normal && now - lastRgbRefreshMs >= RGB_SELF_HEAL_INTERVAL_MS) {
+    lastRgbRefreshMs = now;
+    if (lightOn) {
+      rgbStrip->setColorPercent(redPercent, greenPercent, bluePercent);
+    } else {
+      rgbStrip->off();
+    }
   }
 
   if (!lightOn || phase == Phase::Normal) return;
 
-  unsigned long now = millis();
   unsigned long elapsed = now - phaseStartMs;
 
   if (phase == Phase::Animation) {
@@ -219,6 +235,10 @@ bool StateManager::setBluePercent(uint8_t percent) {
   return true;
 }
 
+void StateManager::beep() {
+  if (buzzer) buzzer->beep();
+}
+
 bool StateManager::setPresetIndex(uint8_t index) {
   if (!lightOn) return false;
   if (index >= NUM_PRESETS) return false;
@@ -266,9 +286,11 @@ void StateManager::applyPresetValues() {
 void StateManager::pushValuesToOutputs() {
   whiteStrip->setBrightnessPercent(whitePercent);
   rgbStrip->setColorPercent(redPercent, greenPercent, bluePercent);
+  lastRgbRefreshMs = millis();
 }
 
 void StateManager::pushOffToOutputs() {
   whiteStrip->off();
   rgbStrip->off();
+  lastRgbRefreshMs = millis();
 }

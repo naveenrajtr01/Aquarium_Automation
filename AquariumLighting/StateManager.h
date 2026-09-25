@@ -46,6 +46,10 @@ public:
   // Only applies while the light is on; returns false (no-op) otherwise.
   bool setPresetIndex(uint8_t index);
 
+  // Brief buzzer chirp for dashboard actions that don't otherwise touch the
+  // strips (e.g. schedule save/enable toggle).
+  void beep();
+
   // Always reflect what the strips currently show (or, while off, what
   // they will show again once switched back on).
   bool isOn() const { return lightOn; }
@@ -92,6 +96,11 @@ private:
   uint8_t fadeTargetBlue = 0;
 
   bool pendingHwApply = false; // set by web-task setters, applied in update()
+
+  // Last time the RGB strip's current color (on or off) was re-sent purely
+  // to self-heal any transient WS2812 transmission glitch - see
+  // RGB_SELF_HEAL_INTERVAL_MS in Config.h.
+  unsigned long lastRgbRefreshMs = 0;
 
   // Guards whitePercent/redPercent/greenPercent/bluePercent/pendingHwApply,
   // which are written from the AsyncWebServer callback task (the setters

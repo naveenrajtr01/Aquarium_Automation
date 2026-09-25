@@ -17,6 +17,15 @@
 // Green under NEO_GRB, then Red under NEO_GBR - working the permutation
 // back from those two results gives the strip's true order as BRG.
 #define RGB_LED_TYPE               (NEO_BRG + NEO_KHZ800)
+// WS2812's single-wire protocol occasionally drops/corrupts a bit in transit
+// (RF/EMI on the data line, marginal 3.3V->5V logic level, etc.), leaving a
+// random stretch of pixels stuck showing stale color until the next full
+// re-send - confirmed by field testing where toggling the switch or
+// re-picking the same preset always clears it. Rather than rely on the user
+// noticing and re-triggering, StateManager re-sends the strip's current
+// (on or off) color on this interval so any glitch self-heals within a few
+// seconds.
+#define RGB_SELF_HEAL_INTERVAL_MS  3000UL
 
 // ---- On/Off + preset-cycling switch ----
 #define SWITCH_PIN                 19      // Switch wired between this pin and GND (internal pull-up used)

@@ -92,6 +92,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Koi Tank Controls</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%F0%9F%90%9F</text></svg>">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAAEHUlEQVR4nO3dPU5bQRhG4YuFWAQapWQNFOmpstpU9ClYRzQLiUQVEh8zNvPzzcx5uqAo9n05mQu2Qu4eHp8O6ZzT2Y9KxqFLjEPIOISMQ8g4hIxDyDiEjEPIOISMQ8g4hIxDyDiEjEPIOISMQ8g4hIxDyDiEjEPIOISMQ8g4hIxDyDiEjEPIOISMQ8g4hIxDyDiEjEPIOISMQ8g4hIxDyDiEjEPIOISMQ8g4hIxDyDj2kl7fyn+zcWwkXVOGcWwkXVmGcewiXV/GcRz3x8bXn1+ejw2km8qYNY6br7bkz1msmPSFre53C+KqB8ozh/L1xULH0S2I9UJJNaaLGMfwJi4/qxy+kloDxoojZhZnn2TYRCpuGCWOKbKIn0jdGcfHMV0WYROpvuTIOKbOIloiLcYcE8cyWQRJpNGeveNYMouxibSbtOt7K8uXMfYlu4nj2KeMPtebXt9aP0SP28puWXS4xfSZtPnJsW0Z7RboNmnbOCyj+g49J20Yh2VUX6PzpK3isIzqm/SftEkcllF9mSGT1o/DMqrvM2rS8W+8/e/3j+9///Lbz1/HxtK4v2ynaFfyTxlnPzK7VLzS2GP4FLyMyx+fV/psqw4vgM7071YuF7BeHxcMz6JyHF+8npLP/WJ9JFgsSBmxTg4dkcqoFkeoS5pI+rhbtBk9OaJIwcqoE0fAq5pIel8v5oaeHOOlkGUEiqPkZdDNXyrdN45PP/eWMV8cdY9EKsAydj85qAPLGCXiu7LWEES4k0NxGIeQcQgZh5BxCBmHmsUR5IfaqAVPDiHjEDKO8XLUW/Np4WubQn5fL+aGnhxR5Hh9nFa9sCnkj7tFm9GTI5b88hwnkWpxxLmkWWReLMiYnhxB5QB9nBa7nlnkgq2G71n55Bh+PVPIxSuN3dPbSnR5XB/14/DwqL7PqEmbnBz2UX2ZIZO2uq3YR/VN+r8E0vBrDvtosUbPVdt+QWofLXbotmrz71bsIzdYoM+qdw+PT5v/oIF2cuNP4W2Tlj+rfq9z7HaE5PbX2/ohur4Itk8fudeVNn2gfreVTW4xOfz/Dln+DMfEsWQiefS5WLjnHHEsk0gencVVY84Ux9SJ5DBZlC85XxzTJZLjZVE446xxTJFIDpxFyYZzxxGzkjxDEyXrLRLH8FDybEGUjLZgHN1CmT2IT7daPI5axSzWQeE4O8ahwj4ivvGmsW44Jo1jI/nKPrytCHlyCBmHkHEIGYeQcQgZh5BxCBmHkHEIGYeQcQgZh5BxCBmHkHEIGYeQcQgZh5BxCBmHkHEIGYeQcQgZh5BxCBmHkHEIGYeQcQgZh5BxCBmHkHEIGYeQcQgZh5BxCBmHkHEIGYeQcQgZh5Bx6CB/ANwURkTXtfJXAAAAAElFTkSuQmCC">
 <style>
   :root { --accent:#22d3ee; --bg1:#03121a; --bg2:#0b2b3a; --card:rgba(255,255,255,0.06); }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -130,7 +131,14 @@ const char DASHBOARD_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
   .slider-row { margin-bottom:6px; }
   .slider-row .lbl { display:flex; justify-content:space-between; font-size:.85rem; color:#bfe6ee; margin-bottom:6px; }
   input[type=range] { width:100%; -webkit-appearance:none; height:34px; background:transparent; }
-  input[type=range]::-webkit-slider-runnable-track { height:8px; border-radius:6px; background:rgba(255,255,255,0.15); }
+  input[type=range]::-webkit-slider-runnable-track {
+    height:8px; border-radius:6px;
+    background:linear-gradient(to right, var(--accent) var(--fill,0%), rgba(255,255,255,0.15) var(--fill,0%));
+  }
+  input[type=range]::-moz-range-track {
+    height:8px; border-radius:6px; background:rgba(255,255,255,0.15);
+  }
+  input[type=range]::-moz-range-progress { height:8px; border-radius:6px; background:var(--accent); }
   input[type=range]::-webkit-slider-thumb {
     -webkit-appearance:none; width:26px; height:26px; margin-top:-9px; border-radius:50%;
     background:var(--accent); border:2px solid #04202a;
@@ -139,9 +147,8 @@ const char DASHBOARD_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
     background:linear-gradient(to right, red, yellow, lime, cyan, blue, magenta, red);
   }
   #colorSquare {
-    position:relative; width:100%; padding-top:65%; border-radius:12px; margin-bottom:14px;
+    position:relative; width:100%; padding-top:38%; border-radius:12px; margin-bottom:14px;
     background:
-      linear-gradient(to top, #000, transparent),
       linear-gradient(to right, #fff, transparent),
       hsl(var(--hue,0), 100%, 50%);
     touch-action:none; overflow:hidden;
@@ -154,6 +161,17 @@ const char DASHBOARD_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
   .swatch-row { display:flex; align-items:center; gap:12px; margin-top:4px; }
   #swatch { width:40px; height:40px; border-radius:10px; border:1px solid rgba(255,255,255,0.2); }
   #rgbReadout { font-size:.8rem; color:#9fc7d0; }
+  .rgb-inputs { display:flex; align-items:flex-end; gap:8px; margin-top:12px; }
+  .rgb-inputs label {
+    display:flex; flex-direction:column; font-size:.7rem; color:#9fc7d0; gap:4px; flex:1;
+  }
+  .rgb-inputs input[type=number] {
+    width:100%; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.15);
+    background:rgba(255,255,255,0.05); color:#e6f6fa; font-size:.9rem; text-align:center;
+  }
+  .rgb-inputs input[type=color] {
+    width:44px; height:38px; padding:0; border:none; border-radius:8px; background:transparent; cursor:pointer;
+  }
   .schedule-row { display:flex; align-items:center; gap:10px; }
   input[type=time] {
     flex:1; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.15);
@@ -179,7 +197,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
   input:disabled, button:disabled { opacity:.45; cursor:not-allowed; }
   .card.locked .lockable { opacity:.35; pointer-events:none; }
   .card.locked { cursor:pointer; }
-  .card.mode-locked .lockable { opacity:.35; pointer-events:none; }
+  .card.mode-locked .mode-lockable { opacity:.35; pointer-events:none; }
   .card.mode-locked { cursor:pointer; }
   #logBox {
     margin-top:12px; background:#01090d; border-radius:10px; padding:10px;
@@ -223,19 +241,11 @@ const char DASHBOARD_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
 
   <div class="card">
     <h2>Color mode</h2>
-    <div class="toggle">
-      <span class="status-label">Preset</span>
-      <label class="switch">
-        <input type="checkbox" id="colorModeToggle">
-        <span class="slider-toggle"></span>
-      </label>
-      <span class="status-label">Gradient</span>
+    <div class="presets" id="colorModeSegmented">
+      <button type="button" data-mode="preset">Preset</button>
+      <button type="button" data-mode="quick">Quick colors</button>
+      <button type="button" data-mode="gradient">Gradient</button>
     </div>
-  </div>
-
-  <div class="card" id="presetCard">
-    <h2>Preset</h2>
-    <div class="presets lockable" id="presetButtons"></div>
   </div>
 
   <div class="card" id="whiteCard">
@@ -246,14 +256,34 @@ const char DASHBOARD_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
     </div>
   </div>
 
+  <div class="card" id="presetCard">
+    <h2>Preset</h2>
+    <div class="presets lockable mode-lockable" id="presetButtons"></div>
+  </div>
+
+  <div class="card" id="quickColorCard">
+    <h2>Quick colors</h2>
+    <div class="presets lockable mode-lockable" id="quickColorButtons"></div>
+  </div>
+
   <div class="card" id="rgbCard">
     <h2>RGB color</h2>
-    <div class="lockable">
+    <div class="slider-row lockable">
+      <div class="lbl"><span>Brightness</span><span id="rgbBrightVal">0%</span></div>
+      <input type="range" min="0" max="100" id="rgbBrightnessSlider">
+    </div>
+    <div class="lockable mode-lockable">
       <div id="colorSquare"><div id="colorMarker"></div></div>
       <input type="range" min="0" max="360" id="hueSlider">
       <div class="swatch-row">
         <div id="swatch"></div>
         <div id="rgbReadout">R0 G0 B0</div>
+      </div>
+      <div class="rgb-inputs">
+        <label>R<input type="number" min="0" max="255" id="redBox"></label>
+        <label>G<input type="number" min="0" max="255" id="greenBox"></label>
+        <label>B<input type="number" min="0" max="255" id="blueBox"></label>
+        <input type="color" id="colorPicker" title="Pick exact color">
       </div>
     </div>
   </div>
@@ -342,6 +372,17 @@ function rgbToHsv(r, g, b) {
   return [h, s, max];
 }
 
+function hexFromRgb(r, g, b) {
+  return '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('');
+}
+
+function hexToRgb(hex) {
+  const v = hex.replace('#','');
+  return [parseInt(v.slice(0,2),16), parseInt(v.slice(2,4),16), parseInt(v.slice(4,6),16)];
+}
+
+function clamp255(v) { return Math.min(255, Math.max(0, Math.round(Number(v) || 0))); }
+
 function formatDate(d) {
   const p = (n) => String(n).padStart(2,'0');
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
@@ -353,6 +394,11 @@ function tickClock() {
   $('timeLabel').textContent = formatDate(displayed) + (timeValidCached ? '' : ' (unset)');
 }
 
+function updateSliderFill(el) {
+  const pct = (el.value - el.min) / (el.max - el.min) * 100;
+  el.style.setProperty('--fill', pct + '%');
+}
+
 function updateColorPreview() {
   const [r,g,b] = hsvToRgb(hue, sat, val);
   $('swatch').style.background = `rgb(${r},${g},${b})`;
@@ -361,7 +407,21 @@ function updateColorPreview() {
   $('colorSquare').style.setProperty('--hue', hue);
   const sq = $('colorSquare');
   $('colorMarker').style.left = (sat * sq.clientWidth) + 'px';
-  $('colorMarker').style.top = ((1 - val) * sq.clientHeight) + 'px';
+  $('colorMarker').style.top = '50%';
+
+  $('hueSlider').value = Math.round(hue);
+  $('rgbBrightnessSlider').value = Math.round(val * 100);
+  $('rgbBrightVal').textContent = Math.round(val * 100) + '%';
+  updateSliderFill($('rgbBrightnessSlider'));
+
+  if (![$('redBox'), $('greenBox'), $('blueBox')].includes(document.activeElement)) {
+    $('redBox').value = r;
+    $('greenBox').value = g;
+    $('blueBox').value = b;
+  }
+  if (document.activeElement !== $('colorPicker')) {
+    $('colorPicker').value = hexFromRgb(r, g, b);
+  }
 }
 
 function sendColor() {
@@ -378,16 +438,14 @@ function sendColor() {
 
 function setupColorSquare() {
   const sq = $('colorSquare');
-  function moveTo(clientX, clientY) {
+  function moveTo(clientX) {
     const rect = sq.getBoundingClientRect();
     let x = Math.min(Math.max(clientX - rect.left, 0), rect.width);
-    let y = Math.min(Math.max(clientY - rect.top, 0), rect.height);
     sat = x / rect.width;
-    val = 1 - (y / rect.height);
     updateColorPreview();
   }
-  sq.addEventListener('pointerdown', e => { colorDragging = true; moveTo(e.clientX, e.clientY); sq.setPointerCapture(e.pointerId); });
-  sq.addEventListener('pointermove', e => { if (colorDragging) moveTo(e.clientX, e.clientY); });
+  sq.addEventListener('pointerdown', e => { colorDragging = true; moveTo(e.clientX); sq.setPointerCapture(e.pointerId); });
+  sq.addEventListener('pointermove', e => { if (colorDragging) moveTo(e.clientX); });
   sq.addEventListener('pointerup',   () => { if (colorDragging) { colorDragging = false; sendColor(); } });
   sq.addEventListener('pointercancel', () => { colorDragging = false; });
 }
@@ -404,6 +462,33 @@ function setupPresets(names) {
         if (res.applied === false) toast('Preset not applied - light is off');
         refreshStatus();
       });
+    box.appendChild(btn);
+  });
+}
+
+const QUICK_COLORS = [
+  { name: 'Gold',       r: 255, g: 215, b: 0 },
+  { name: 'Warm White', r: 255, g: 197, b: 143 },
+  { name: 'Amber',      r: 255, g: 126, b: 0 },
+  { name: 'Sunset',     r: 255, g: 94,  b: 19 },
+];
+
+function setColorFromRgb255(r, g, b) {
+  const [h, s, v] = rgbToHsv(r, g, b);
+  hue = h; sat = s; val = v;
+  updateColorPreview();
+  sendColor();
+}
+
+function setupQuickColors() {
+  const box = $('quickColorButtons');
+  box.innerHTML = '';
+  QUICK_COLORS.forEach(c => {
+    const btn = document.createElement('button');
+    btn.textContent = c.name;
+    btn.style.background = `rgb(${c.r},${c.g},${c.b})`;
+    btn.style.color = (c.r*0.299 + c.g*0.587 + c.b*0.114) > 150 ? '#04202a' : '#fff';
+    btn.onclick = () => setColorFromRgb255(c.r, c.g, c.b);
     box.appendChild(btn);
   });
 }
@@ -428,15 +513,15 @@ function refreshStatus() {
     if (document.activeElement !== $('whiteSlider')) {
       $('whiteSlider').value = s.white;
       $('whiteVal').textContent = s.white + '%';
+      updateSliderFill($('whiteSlider'));
     }
 
-    if (!colorDragging) {
+    if (!colorDragging && ![$('redBox'), $('greenBox'), $('blueBox'), $('colorPicker')].includes(document.activeElement)) {
       const [h, sv, v] = rgbToHsv(
         Math.round(s.red / 100 * 255),
         Math.round(s.green / 100 * 255),
         Math.round(s.blue / 100 * 255));
       hue = h; sat = sv; val = v;
-      $('hueSlider').value = Math.round(hue);
       updateColorPreview();
     }
 
@@ -449,12 +534,13 @@ function refreshStatus() {
     $('scheduleInput').disabled = !s.scheduleEnabled;
     $('saveScheduleBtn').disabled = !s.scheduleEnabled;
 
-    ['presetCard','whiteCard','rgbCard'].forEach(id => $(id).classList.toggle('locked', !s.on));
+    ['presetCard','whiteCard','rgbCard','quickColorCard'].forEach(id => $(id).classList.toggle('locked', !s.on));
   }).catch(() => {});
 }
 
 $('whiteSlider').addEventListener('input', () => {
   $('whiteVal').textContent = $('whiteSlider').value + '%';
+  updateSliderFill($('whiteSlider'));
 });
 $('whiteSlider').addEventListener('change', () => {
   postForm('/api/white', { value: $('whiteSlider').value })
@@ -464,8 +550,41 @@ $('whiteSlider').addEventListener('change', () => {
     });
 });
 
-$('hueSlider').addEventListener('input', () => { hue = Number($('hueSlider').value); updateColorPreview(); });
-$('hueSlider').addEventListener('change', sendColor);
+$('hueSlider').addEventListener('input', () => {
+  colorDragging = true;
+  hue = Number($('hueSlider').value);
+  updateColorPreview();
+});
+$('hueSlider').addEventListener('change', () => { sendColor(); colorDragging = false; });
+
+$('rgbBrightnessSlider').addEventListener('input', () => {
+  colorDragging = true;
+  val = Number($('rgbBrightnessSlider').value) / 100;
+  updateColorPreview();
+});
+$('rgbBrightnessSlider').addEventListener('change', () => { sendColor(); colorDragging = false; });
+
+function onRgbBoxInput() {
+  const r = clamp255($('redBox').value);
+  const g = clamp255($('greenBox').value);
+  const b = clamp255($('blueBox').value);
+  const [h, s, v] = rgbToHsv(r, g, b);
+  hue = h; sat = s; val = v;
+  updateColorPreview();
+}
+['redBox','greenBox','blueBox'].forEach(id => {
+  $(id).addEventListener('input', onRgbBoxInput);
+  $(id).addEventListener('change', () => { onRgbBoxInput(); sendColor(); });
+});
+
+$('colorPicker').addEventListener('input', () => {
+  colorDragging = true;
+  const [r,g,b] = hexToRgb($('colorPicker').value);
+  const [h,s,v] = rgbToHsv(r,g,b);
+  hue = h; sat = s; val = v;
+  updateColorPreview();
+});
+$('colorPicker').addEventListener('change', () => { sendColor(); colorDragging = false; });
 
 $('scheduleInput').addEventListener('focus', () => scheduleTouched = true);
 $('saveScheduleBtn').addEventListener('click', () => {
@@ -488,24 +607,34 @@ $('syncTimeBtn').addEventListener('click', () => {
   });
 });
 
-['presetCard','whiteCard','rgbCard'].forEach(id => {
-  $(id).addEventListener('click', () => {
-    if ($(id).classList.contains('locked')) toast('Turn on the light to use this control');
-    else if ($(id).classList.contains('mode-locked')) toast('Switch color mode to use this control');
+['presetCard','whiteCard','rgbCard','quickColorCard'].forEach(id => {
+  $(id).addEventListener('click', (e) => {
+    const card = $(id);
+    if (card.classList.contains('locked') && e.target.closest('.lockable')) {
+      toast('Turn on the light to use this control');
+    } else if (card.classList.contains('mode-locked') && e.target.closest('.mode-lockable')) {
+      toast('Switch color mode to use this control');
+    }
   });
 });
 
 const COLOR_MODE_KEY = 'colorMode';
-let colorMode = localStorage.getItem(COLOR_MODE_KEY) === 'gradient' ? 'gradient' : 'preset';
+let colorMode = localStorage.getItem(COLOR_MODE_KEY);
+if (!['preset','gradient','quick'].includes(colorMode)) colorMode = 'preset';
 
 function applyColorMode() {
-  $('presetCard').classList.toggle('mode-locked', colorMode === 'gradient');
-  $('rgbCard').classList.toggle('mode-locked', colorMode === 'preset');
-  $('colorModeToggle').checked = colorMode === 'gradient';
+  $('presetCard').classList.toggle('mode-locked', colorMode !== 'preset');
+  $('rgbCard').classList.toggle('mode-locked', colorMode !== 'gradient');
+  $('quickColorCard').classList.toggle('mode-locked', colorMode !== 'quick');
+  [...$('colorModeSegmented').children].forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === colorMode);
+  });
 }
 
-$('colorModeToggle').addEventListener('change', (e) => {
-  colorMode = e.target.checked ? 'gradient' : 'preset';
+$('colorModeSegmented').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-mode]');
+  if (!btn) return;
+  colorMode = btn.dataset.mode;
   localStorage.setItem(COLOR_MODE_KEY, colorMode);
   applyColorMode();
 });
@@ -530,6 +659,7 @@ $('logToggle').addEventListener('change', (e) => {
 });
 
 setupColorSquare();
+setupQuickColors();
 updateColorPreview();
 applyColorMode();
 refreshStatus();
@@ -656,6 +786,7 @@ void WebDashboard::begin(StateManager *stateManager, RtcManager *rtcManager) {
       uint8_t hour = (uint8_t)request->getParam("hour", true)->value().toInt();
       uint8_t minute = (uint8_t)request->getParam("minute", true)->value().toInt();
       g_rtcManager->setScheduleTime(hour, minute);
+      g_stateManager->beep();
     }
     request->send(200, "application/json", "{\"applied\":true}");
   });
@@ -665,6 +796,7 @@ void WebDashboard::begin(StateManager *stateManager, RtcManager *rtcManager) {
     if (request->hasParam("enabled", true)) {
       bool enabled = request->getParam("enabled", true)->value().toInt() != 0;
       g_rtcManager->setScheduleEnabled(enabled);
+      g_stateManager->beep();
     }
     request->send(200, "application/json", "{\"applied\":true}");
   });
