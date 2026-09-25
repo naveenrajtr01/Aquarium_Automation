@@ -24,9 +24,13 @@ public:
   // the last call.
   bool consumeScheduledTrigger();
 
-  // Sets the RTC to the given Unix epoch time. Whatever timezone your app
-  // sends is what the schedule alarm hour/minute/second are compared in.
-  void setEpoch(uint32_t epochSeconds);
+  // Sets the RTC directly from local wall-clock date/time components (as
+  // read from the phone's browser via JS's local Date getters). Deliberately
+  // NOT epoch/UTC-based - the RTC stores whatever clock the schedule
+  // hour/minute is compared against, so it must be fed local time directly,
+  // not a timezone-less Unix epoch (which round-trips through UTC and can
+  // end up hours off from the user's actual local time).
+  void setLocalDateTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second);
 
   // Runtime-adjustable daily schedule, persisted in NVS (falls back to
   // Config.h's SCHEDULE_HOUR/SCHEDULE_MINUTE on first boot). Re-arms the

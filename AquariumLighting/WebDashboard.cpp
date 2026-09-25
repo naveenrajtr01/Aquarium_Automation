@@ -963,7 +963,14 @@ $('scheduleEnableToggle').addEventListener('change', (e) => {
 });
 
 $('syncTimeBtn').addEventListener('click', () => {
-  postForm('/api/time', { epoch: Math.floor(Date.now() / 1000) }).then(() => {
+  // Send local wall-clock components (not epoch/UTC) so the RTC ends up
+  // set to what the phone's clock actually shows, matching how the
+  // schedule hour/minute are interpreted.
+  const d = new Date();
+  postForm('/api/time', {
+    year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(),
+    hour: d.getHours(), minute: d.getMinutes(), second: d.getSeconds()
+  }).then(() => {
     toast('Time synced');
     refreshStatus();
   });
@@ -1198,9 +1205,15 @@ void WebDashboard::begin(StateManager *stateManager, RtcManager *rtcManager) {
 
   g_server.on("/api/time", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (!ensureAuth(request)) return;
-    if (request->hasParam("epoch", true)) {
-      uint32_t epoch = (uint32_t)request->getParam("epoch", true)->value().toInt();
-      g_rtcManager->setEpoch(epoch);
+    if (request->hasParam("year", true) && request->hasParam("month", true) && request->hasParam("day", true) &&
+        request->hasParam("hour", true) && request->hasParam("minute", true) && request->hasParam("second", true)) {
+      uint16_t year = (uint16_t)request->getParam("year", true)->value().toInt();
+      uint8_t month = (uint8_t)request->getParam("month", true)->value().toInt();
+      uint8_t day = (uint8_t)request->getParam("day", true)->value().toInt();
+      uint8_t hour = (uint8_t)request->getParam("hour", true)->value().toInt();
+      uint8_t minute = (uint8_t)request->getParam("minute", true)->value().toInt();
+      uint8_t second = (uint8_t)request->getParam("second", true)->value().toInt();
+      g_rtcManager->setLocalDateTime(year, month, day, hour, minute, second);
     }
     request->send(200, "application/json", "{\"applied\":true}");
   });

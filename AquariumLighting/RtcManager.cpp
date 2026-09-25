@@ -33,7 +33,7 @@ void RtcManager::update() {
     }
   }
 
-  // Only place that touches the RTC/Wire bus besides begin()/setEpoch()/
+  // Only place that touches the RTC/Wire bus besides begin()/setLocalDateTime()/
   // armAlarm() - keeps all I2C access on this one task. See getTimeString()/
   // isTimeValid() comments in the header for why.
   char buf[24];
@@ -51,8 +51,8 @@ bool RtcManager::consumeScheduledTrigger() {
   return true;
 }
 
-void RtcManager::setEpoch(uint32_t epochSeconds) {
-  rtc.adjust(DateTime(epochSeconds));
+void RtcManager::setLocalDateTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second) {
+  rtc.adjust(DateTime(year, month, day, hour, minute, second));
   Logger::logf("RTC time set to %s", rtc.now().timestamp().c_str());
 }
 
