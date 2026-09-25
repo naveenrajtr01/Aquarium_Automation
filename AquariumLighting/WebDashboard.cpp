@@ -413,6 +413,7 @@ void WebDashboard::begin(StateManager *stateManager, RtcManager *rtcManager) {
   if (WiFi.status() == WL_CONNECTED) {
     Logger::logf("WiFi connected, IP: %s", WiFi.localIP().toString().c_str());
     if (MDNS.begin(DASHBOARD_MDNS_HOSTNAME)) {
+      MDNS.addService("http", "tcp", WEB_SERVER_PORT);
       Logger::logf("Dashboard: http://%s.local/  (or http://%s/)",
                    DASHBOARD_MDNS_HOSTNAME, WiFi.localIP().toString().c_str());
     }
