@@ -1,15 +1,10 @@
 #include "Logger.h"
 #include <stdarg.h>
 
-BLECharacteristic *Logger::bleLogChar = nullptr;
 void (*Logger::webSink)(const String &message) = nullptr;
 
 void Logger::begin(unsigned long serialBaud) {
   Serial.begin(serialBaud);
-}
-
-void Logger::attachBleCharacteristic(BLECharacteristic *characteristic) {
-  bleLogChar = characteristic;
 }
 
 void Logger::attachWebSink(void (*sink)(const String &message)) {
@@ -18,10 +13,6 @@ void Logger::attachWebSink(void (*sink)(const String &message)) {
 
 void Logger::log(const String &message) {
   Serial.println(message);
-  if (bleLogChar) {
-    bleLogChar->setValue(message.c_str());
-    bleLogChar->notify();
-  }
   if (webSink) webSink(message);
 }
 

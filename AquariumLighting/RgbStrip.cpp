@@ -14,9 +14,14 @@ void RgbStrip::setColorPercent(uint8_t redPercent, uint8_t greenPercent, uint8_t
   uint8_t clampedGreen = min<uint8_t>(greenPercent, 100);
   uint8_t clampedBlue = min<uint8_t>(bluePercent, 100);
 
-  uint8_t r = (255 * clampedRed) / 100;
-  uint8_t g = (255 * clampedGreen) / 100;
-  uint8_t b = (255 * clampedBlue) / 100;
+  // Round rather than truncate: the dashboard already loses precision
+  // converting its 0-255 color picker down to a 0-100 percent value, so
+  // truncating here compounds that error and made non-primary/gradient
+  // colors look visibly off despite primary colors (which land on exact
+  // percentages) looking fine.
+  uint8_t r = (255 * clampedRed + 50) / 100;
+  uint8_t g = (255 * clampedGreen + 50) / 100;
+  uint8_t b = (255 * clampedBlue + 50) / 100;
   uint32_t color = strip.Color(r, g, b);
 
   for (uint16_t i = 0; i < strip.numPixels(); i++) {

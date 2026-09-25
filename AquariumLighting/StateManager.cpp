@@ -64,7 +64,7 @@ void StateManager::handleSwitchTurnedOn() {
   if (buzzer) buzzer->beep();
   Logger::logf("Switch ON -> next preset %d (%s)", presetIndex, PRESETS[presetIndex].name);
 
-  // Any BLE customization made before the light was switched off is
+  // Any dashboard customization made before the light was switched off is
   // discarded here - applyPresetValues() resets to the stored preset.
   applyPresetValues();
   phase = Phase::Normal;
@@ -89,11 +89,15 @@ void StateManager::startScheduledSequence() {
   lastAnimationFrameMs = 0;
   whitePercent = 0;
   whiteStrip->off();
-  outputsDirty = true;
   Logger::logf("Scheduled animation started (%lus)", SCHEDULE_ANIMATION_MS / 1000UL);
 }
 
 void StateManager::update() {
+  if (pendingHwApply) {
+    pendingHwApply = false;
+    if (lightOn) pushValuesToOutputs();
+  }
+
   if (!lightOn || phase == Phase::Normal) return;
 
   unsigned long now = millis();
@@ -165,28 +169,28 @@ void StateManager::renderFadeIn(unsigned long elapsedMs) {
 bool StateManager::setWhiteBrightnessPercent(uint8_t percent) {
   if (!lightOn) return false;
   whitePercent = min<uint8_t>(percent, 100);
-  whiteStrip->setBrightnessPercent(whitePercent);
+  pendingHwApply = true;
   return true;
 }
 
 bool StateManager::setRedPercent(uint8_t percent) {
   if (!lightOn) return false;
   redPercent = min<uint8_t>(percent, 100);
-  rgbStrip->setColorPercent(redPercent, greenPercent, bluePercent);
+  pendingHwApply = true;
   return true;
 }
 
 bool StateManager::setGreenPercent(uint8_t percent) {
   if (!lightOn) return false;
   greenPercent = min<uint8_t>(percent, 100);
-  rgbStrip->setColorPercent(redPercent, greenPercent, bluePercent);
+  pendingHwApply = true;
   return true;
 }
 
 bool StateManager::setBluePercent(uint8_t percent) {
   if (!lightOn) return false;
   bluePercent = min<uint8_t>(percent, 100);
-  rgbStrip->setColorPercent(redPercent, greenPercent, bluePercent);
+  pendingHwApply = true;
   return true;
 }
 
@@ -199,7 +203,7 @@ bool StateManager::setPresetIndex(uint8_t index) {
   if (buzzer) buzzer->beep();
   applyPresetValues();
   phase = Phase::Normal;
-  pushValuesToOutputs();
+  pendingHwApply = true;
   Logger::logf("Preset set directly to %d (%s)", presetIndex, PRESETS[presetIndex].name);
   return true;
 }
@@ -230,11 +234,9 @@ void StateManager::applyPresetValues() {
 void StateManager::pushValuesToOutputs() {
   whiteStrip->setBrightnessPercent(whitePercent);
   rgbStrip->setColorPercent(redPercent, greenPercent, bluePercent);
-  outputsDirty = true;
 }
 
 void StateManager::pushOffToOutputs() {
   whiteStrip->off();
   rgbStrip->off();
-  outputsDirty = true;
 }

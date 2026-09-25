@@ -12,7 +12,7 @@ void RtcManager::begin() {
     // First-ever boot (or battery removed): seed with compile time so the
     // clock isn't wildly wrong until the app sends the accurate time.
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-    Logger::log("RTC lost power - seeded from compile time (set accurate time via BLE)");
+    Logger::log("RTC lost power - seeded from compile time (set accurate time via the dashboard's Sync time button)");
   }
   Logger::logf("RTC current time: %s", rtc.now().timestamp().c_str());
 
@@ -25,8 +25,12 @@ void RtcManager::update() {
   // via a hardware interrupt.
   if (rtc.alarmFired(1)) {
     rtc.clearAlarm(1);
-    alarmPending = true;
-    Logger::logf("RTC alarm fired at %s", rtc.now().timestamp().c_str());
+    if (scheduleEnabled) {
+      alarmPending = true;
+      Logger::logf("RTC alarm fired at %s", rtc.now().timestamp().c_str());
+    } else {
+      Logger::log("RTC alarm fired but schedule is disabled - ignored");
+    }
   }
 
   // Only place that touches the RTC/Wire bus besides begin()/setEpoch()/
@@ -60,11 +64,21 @@ void RtcManager::setScheduleTime(uint8_t hour, uint8_t minute) {
   armAlarm();
 }
 
+void RtcManager::setScheduleEnabled(bool enabled) {
+  scheduleEnabled = enabled;
+  Preferences prefs;
+  prefs.begin(PREFS_NAMESPACE, false);
+  prefs.putBool(PREFS_KEY_SCHEDULE_ENABLED, scheduleEnabled);
+  prefs.end();
+  Logger::logf("Daily schedule %s", scheduleEnabled ? "enabled" : "disabled");
+}
+
 void RtcManager::loadScheduleFromStorage() {
   Preferences prefs;
   prefs.begin(PREFS_NAMESPACE, true); // read-only
   scheduleHour = prefs.getUChar(PREFS_KEY_SCHEDULE_HOUR, SCHEDULE_HOUR);
   scheduleMinute = prefs.getUChar(PREFS_KEY_SCHEDULE_MINUTE, SCHEDULE_MINUTE);
+  scheduleEnabled = prefs.getBool(PREFS_KEY_SCHEDULE_ENABLED, true);
   prefs.end();
   if (scheduleHour > 23) scheduleHour = SCHEDULE_HOUR;
   if (scheduleMinute > 59) scheduleMinute = SCHEDULE_MINUTE;

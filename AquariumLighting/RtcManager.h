@@ -11,9 +11,8 @@
 // starting to run on the ESP32 (upload + boot time) means a compile-time
 // (__DATE__/__TIME__) set is already stale by the time it's applied, so
 // that is only ever used as a first-boot fallback (RTC never set / lost
-// battery backup). For accurate time, write the current Unix epoch seconds
-// (e.g. from your phone's NTP-synced clock) to the "Set Time" BLE
-// characteristic - see README.md.
+// battery backup). For accurate time, use the web dashboard's "Sync time"
+// button, which sends the browser's current time.
 class RtcManager {
 public:
   void begin();
@@ -35,6 +34,12 @@ public:
   void setScheduleTime(uint8_t hour, uint8_t minute);
   uint8_t getScheduleHour() const { return scheduleHour; }
   uint8_t getScheduleMinute() const { return scheduleMinute; }
+
+  // Enables/disables the daily schedule without touching the stored time -
+  // while disabled, the alarm firing is ignored (consumeScheduledTrigger()
+  // never returns true). Persisted in NVS, defaults to enabled.
+  void setScheduleEnabled(bool enabled);
+  bool isScheduleEnabled() const { return scheduleEnabled; }
 
   // Current time as "YYYY-MM-DD HH:MM:SS", cached from the last update()
   // call. isTimeValid() is false if the RTC has never been set accurately
@@ -58,6 +63,7 @@ private:
   bool alarmPending = false;
   uint8_t scheduleHour = SCHEDULE_HOUR;
   uint8_t scheduleMinute = SCHEDULE_MINUTE;
+  bool scheduleEnabled = true;
   String cachedTimeString = "1970-01-01 00:00:00";
   bool cachedTimeValid = false;
 };

@@ -44,6 +44,7 @@ String buildStatusJson() {
   json += "\",\"timeValid\":"; json += (g_rtcManager->isTimeValid() ? "true" : "false");
   json += ",\"scheduleHour\":";   json += g_rtcManager->getScheduleHour();
   json += ",\"scheduleMinute\":"; json += g_rtcManager->getScheduleMinute();
+  json += ",\"scheduleEnabled\":"; json += (g_rtcManager->isScheduleEnabled() ? "true" : "false");
   json += "}";
   return json;
 }
@@ -173,6 +174,9 @@ const char DASHBOARD_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
   }
   input:checked + .slider-toggle { background:var(--accent); }
   input:checked + .slider-toggle:before { transform:translateX(22px); }
+  input:disabled, button:disabled { opacity:.45; cursor:not-allowed; }
+  .card.locked .lockable { opacity:.35; pointer-events:none; }
+  .card.locked { cursor:pointer; }
   #logBox {
     margin-top:12px; background:#01090d; border-radius:10px; padding:10px;
     height:180px; overflow-y:auto; font-family:ui-monospace,Menlo,monospace;
@@ -207,33 +211,46 @@ const char DASHBOARD_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
       <span class="status-label">Time (ESP32 / DS3231)</span>
       <span id="timeLabel" class="status-value">-</span>
     </div>
+    <div class="status-row">
+      <span class="status-label"></span>
+      <button class="action" id="syncTimeBtn" style="padding:6px 12px;font-size:.75rem;">Sync time from phone</button>
+    </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="presetCard">
     <h2>Preset</h2>
-    <div class="presets" id="presetButtons"></div>
+    <div class="presets lockable" id="presetButtons"></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="whiteCard">
     <h2>White brightness</h2>
-    <div class="slider-row">
+    <div class="slider-row lockable">
       <div class="lbl"><span>Brightness</span><span id="whiteVal">0%</span></div>
       <input type="range" min="0" max="100" id="whiteSlider">
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="rgbCard">
     <h2>RGB color</h2>
-    <div id="colorSquare"><div id="colorMarker"></div></div>
-    <input type="range" min="0" max="360" id="hueSlider">
-    <div class="swatch-row">
-      <div id="swatch"></div>
-      <div id="rgbReadout">R0 G0 B0</div>
+    <div class="lockable">
+      <div id="colorSquare"><div id="colorMarker"></div></div>
+      <input type="range" min="0" max="360" id="hueSlider">
+      <div class="swatch-row">
+        <div id="swatch"></div>
+        <div id="rgbReadout">R0 G0 B0</div>
+      </div>
     </div>
   </div>
 
   <div class="card">
     <h2>Daily schedule</h2>
+    <div class="toggle" style="margin-bottom:10px;">
+      <span class="status-label">Enable daily schedule</span>
+      <label class="switch">
+        <input type="checkbox" id="scheduleEnableToggle">
+        <span class="slider-toggle"></span>
+      </label>
+    </div>
     <div class="schedule-row">
       <input type="time" id="scheduleInput">
       <button class="action" id="saveScheduleBtn">Save</button>
@@ -259,7 +276,11 @@ const char DASHBOARD_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
 const $ = (id) => document.getElementById(id);
 let scheduleTouched = false;
 let hue = 0, sat = 1, val = 1;
+let colorDragging = false;
 let ws = null;
+let lastKnownTime = null;
+let lastKnownAtMs = 0;
+let timeValidCached = false;
 
 function toast(msg) {
   const t = $('toast');
@@ -291,6 +312,31 @@ function hsvToRgb(h, s, v) {
   return [Math.round((r+m)*255), Math.round((g+m)*255), Math.round((b+m)*255)];
 }
 
+function rgbToHsv(r, g, b) {
+  r/=255; g/=255; b/=255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max-min;
+  let h = 0;
+  if (d !== 0) {
+    if (max === r) h = 60 * (((g-b)/d) % 6);
+    else if (max === g) h = 60 * ((b-r)/d + 2);
+    else h = 60 * ((r-g)/d + 4);
+    if (h < 0) h += 360;
+  }
+  const s = max === 0 ? 0 : d/max;
+  return [h, s, max];
+}
+
+function formatDate(d) {
+  const p = (n) => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+function tickClock() {
+  if (!lastKnownTime) return;
+  const displayed = new Date(lastKnownTime.getTime() + (Date.now() - lastKnownAtMs));
+  $('timeLabel').textContent = formatDate(displayed) + (timeValidCached ? '' : ' (unset)');
+}
+
 function updateColorPreview() {
   const [r,g,b] = hsvToRgb(hue, sat, val);
   $('swatch').style.background = `rgb(${r},${g},${b})`;
@@ -308,12 +354,14 @@ function sendColor() {
     red: Math.round(r/255*100),
     green: Math.round(g/255*100),
     blue: Math.round(b/255*100)
-  }).then(res => { if (res.applied === false) toast('Color not applied - light is off'); });
+  }).then(res => {
+    if (res.applied === false) toast('Color not applied - light is off');
+    refreshStatus();
+  });
 }
 
 function setupColorSquare() {
   const sq = $('colorSquare');
-  let dragging = false;
   function moveTo(clientX, clientY) {
     const rect = sq.getBoundingClientRect();
     let x = Math.min(Math.max(clientX - rect.left, 0), rect.width);
@@ -322,10 +370,10 @@ function setupColorSquare() {
     val = 1 - (y / rect.height);
     updateColorPreview();
   }
-  sq.addEventListener('pointerdown', e => { dragging = true; moveTo(e.clientX, e.clientY); sq.setPointerCapture(e.pointerId); });
-  sq.addEventListener('pointermove', e => { if (dragging) moveTo(e.clientX, e.clientY); });
-  sq.addEventListener('pointerup',   () => { if (dragging) { dragging = false; sendColor(); } });
-  sq.addEventListener('pointercancel', () => { dragging = false; });
+  sq.addEventListener('pointerdown', e => { colorDragging = true; moveTo(e.clientX, e.clientY); sq.setPointerCapture(e.pointerId); });
+  sq.addEventListener('pointermove', e => { if (colorDragging) moveTo(e.clientX, e.clientY); });
+  sq.addEventListener('pointerup',   () => { if (colorDragging) { colorDragging = false; sendColor(); } });
+  sq.addEventListener('pointercancel', () => { colorDragging = false; });
 }
 
 function setupPresets(names) {
@@ -336,7 +384,10 @@ function setupPresets(names) {
     btn.textContent = name;
     btn.dataset.idx = idx;
     btn.onclick = () => postForm('/api/preset', { index: idx })
-      .then(res => { if (res.applied === false) toast('Preset not applied - light is off'); });
+      .then(res => {
+        if (res.applied === false) toast('Preset not applied - light is off');
+        refreshStatus();
+      });
     box.appendChild(btn);
   });
 }
@@ -352,11 +403,25 @@ function refreshStatus() {
       btn.classList.toggle('active', idx === s.preset);
     });
     $('activePresetLabel').textContent = s.presets[s.preset] || '-';
-    $('timeLabel').textContent = s.timeValid ? s.time : (s.time + ' (unset)');
+
+    lastKnownTime = new Date(s.time.replace(' ', 'T'));
+    lastKnownAtMs = Date.now();
+    timeValidCached = s.timeValid;
+    tickClock();
 
     if (document.activeElement !== $('whiteSlider')) {
       $('whiteSlider').value = s.white;
       $('whiteVal').textContent = s.white + '%';
+    }
+
+    if (!colorDragging) {
+      const [h, sv, v] = rgbToHsv(
+        Math.round(s.red / 100 * 255),
+        Math.round(s.green / 100 * 255),
+        Math.round(s.blue / 100 * 255));
+      hue = h; sat = sv; val = v;
+      $('hueSlider').value = Math.round(hue);
+      updateColorPreview();
     }
 
     if (!scheduleTouched) {
@@ -364,6 +429,11 @@ function refreshStatus() {
       const mm = String(s.scheduleMinute).padStart(2,'0');
       $('scheduleInput').value = `${hh}:${mm}`;
     }
+    $('scheduleEnableToggle').checked = s.scheduleEnabled;
+    $('scheduleInput').disabled = !s.scheduleEnabled;
+    $('saveScheduleBtn').disabled = !s.scheduleEnabled;
+
+    ['presetCard','whiteCard','rgbCard'].forEach(id => $(id).classList.toggle('locked', !s.on));
   }).catch(() => {});
 }
 
@@ -372,7 +442,10 @@ $('whiteSlider').addEventListener('input', () => {
 });
 $('whiteSlider').addEventListener('change', () => {
   postForm('/api/white', { value: $('whiteSlider').value })
-    .then(res => { if (res.applied === false) toast('Brightness not applied - light is off'); });
+    .then(res => {
+      if (res.applied === false) toast('Brightness not applied - light is off');
+      refreshStatus();
+    });
 });
 
 $('hueSlider').addEventListener('input', () => { hue = Number($('hueSlider').value); updateColorPreview(); });
@@ -384,6 +457,24 @@ $('saveScheduleBtn').addEventListener('click', () => {
   postForm('/api/schedule', { hour: hh, minute: mm }).then(() => {
     scheduleTouched = false;
     toast('Schedule saved');
+    refreshStatus();
+  });
+});
+
+$('scheduleEnableToggle').addEventListener('change', (e) => {
+  postForm('/api/schedule-enabled', { enabled: e.target.checked ? 1 : 0 }).then(refreshStatus);
+});
+
+$('syncTimeBtn').addEventListener('click', () => {
+  postForm('/api/time', { epoch: Math.floor(Date.now() / 1000) }).then(() => {
+    toast('Time synced');
+    refreshStatus();
+  });
+});
+
+['presetCard','whiteCard','rgbCard'].forEach(id => {
+  $(id).addEventListener('click', () => {
+    if ($(id).classList.contains('locked')) toast('Turn on the light to use this control');
   });
 });
 
@@ -410,6 +501,7 @@ setupColorSquare();
 updateColorPreview();
 refreshStatus();
 setInterval(refreshStatus, 3000);
+setInterval(tickClock, 1000);
 </script>
 </body>
 </html>
@@ -424,11 +516,11 @@ void WebDashboard::begin(StateManager *stateManager, RtcManager *rtcManager) {
   WiFi.persistent(true);
   WiFi.setAutoReconnect(true);
   WiFi.mode(WIFI_STA);
-  // Disable WiFi modem sleep (power save). With BLE advertising running
-  // concurrently, WiFi power-save puts the radio into a low-power receive
-  // schedule that can miss/delay incoming TCP SYN packets - the ESP32 still
-  // answers ICMP pings (handled differently) but refuses new TCP connections
-  // on ports it's actively listening on. This must be set before WiFi.begin().
+  // Disable WiFi modem sleep (power save). WiFi power-save puts the radio
+  // into a low-power receive schedule that can miss/delay incoming TCP SYN
+  // packets - the ESP32 still answers ICMP pings (handled differently) but
+  // refuses new TCP connections on ports it's actively listening on. This
+  // must be set before WiFi.begin().
   WiFi.setSleep(false);
   WiFi.onEvent(onWifiEvent);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -531,6 +623,24 @@ void WebDashboard::begin(StateManager *stateManager, RtcManager *rtcManager) {
       uint8_t hour = (uint8_t)request->getParam("hour", true)->value().toInt();
       uint8_t minute = (uint8_t)request->getParam("minute", true)->value().toInt();
       g_rtcManager->setScheduleTime(hour, minute);
+    }
+    request->send(200, "application/json", "{\"applied\":true}");
+  });
+
+  g_server.on("/api/schedule-enabled", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (!ensureAuth(request)) return;
+    if (request->hasParam("enabled", true)) {
+      bool enabled = request->getParam("enabled", true)->value().toInt() != 0;
+      g_rtcManager->setScheduleEnabled(enabled);
+    }
+    request->send(200, "application/json", "{\"applied\":true}");
+  });
+
+  g_server.on("/api/time", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (!ensureAuth(request)) return;
+    if (request->hasParam("epoch", true)) {
+      uint32_t epoch = (uint32_t)request->getParam("epoch", true)->value().toInt();
+      g_rtcManager->setEpoch(epoch);
     }
     request->send(200, "application/json", "{\"applied\":true}");
   });

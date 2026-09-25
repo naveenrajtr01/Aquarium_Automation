@@ -4,11 +4,11 @@ Controls a white LED strip (PWM dimmed) and an addressable RGB strip
 (NeoPixel/WS2812B-style) for an aquarium, using:
 
 - A physical on/off + preset-cycling switch
-- A mobile app connected over Bluetooth Low Energy (BLE)
 - A **"Koi Tank Controls" web dashboard**, hosted by the ESP32 itself over
   WiFi, reachable from any phone browser on your home network - no app
   install required (see [Web Dashboard](#web-dashboard-koi-tank-controls) below)
-- A DS3231 real-time clock driving a daily evening lighting schedule
+- A DS3231 real-time clock driving a daily evening lighting schedule (can be
+  enabled/disabled from the dashboard)
 - A buzzer that gives a brief chime on power-on and beeps on every mode change
 
 Sketch folder: [AquariumLighting/](AquariumLighting)
@@ -20,7 +20,7 @@ Sketch folder: [AquariumLighting/](AquariumLighting)
 | White strip PWM out     | GPIO25       | Feeds your custom PWM dimming circuit, not the LED strip directly. Driven via `ledcSetup`/`ledcWrite` |
 | RGB strip Data In       | GPIO27       | Direct digital data line to the addressable strip (30 pixels)       |
 | On/Off + preset switch  | GPIO19       | Wire between the pin and GND. Internal pull-up is used in firmware  |
-| Buzzer                  | GPIO32       | Active-high buzzer module, beeps 300 ms on power-on and any mode change |
+| Buzzer                  | GPIO32       | Active-high buzzer module, beeps 100 ms on power-on and any mode change |
 | DS3231 SDA / SCL        | GPIO21 / 22  | I2C connection to the real-time clock module                       |
 
 Change any of these in [AquariumLighting/Config.h](AquariumLighting/Config.h) if your wiring differs.
@@ -39,15 +39,16 @@ Also set `RGB_LED_COUNT` in `Config.h` to match the number of pixels on your str
   advancing it, regardless of which position the switch happens to be in at
   boot.
 - Every preset change (switch-triggered or the automatic schedule below)
-  triggers a 300 ms buzzer beep. The board also gives a single 300 ms beep
+  triggers a 100 ms buzzer beep. The board also gives a single 100 ms beep
   on power-on/reset.
 
 ### Daily schedule (DS3231 alarm)
 
 - The DS3231's built-in alarm (polled each loop, no extra interrupt wiring
   needed) fires once a day at `SCHEDULE_HOUR:SCHEDULE_MINUTE:SCHEDULE_SECOND`
-  in `Config.h` (default **18:00 / 6:00 PM**).
-- If the switch is **on** when it fires: a 10-second RGB rainbow animation
+  in `Config.h` (default **18:00 / 6:00 PM**), only while the schedule is
+  enabled (toggle in the dashboard; enabled by default).
+- If the switch is **on** when it fires: a 5-second RGB rainbow animation
   plays, then the light settles into `SCHEDULE_DEFAULT_PRESET_INDEX`'s preset
   (default index `0`), gradually glowing up from off over 2 seconds.
 - If the switch is **off** when it fires, the sequence is queued and runs
@@ -56,8 +57,8 @@ Also set `RGB_LED_COUNT` in `Config.h` to match the number of pixels on your str
   RTC from the compile-time `__DATE__`/`__TIME__` (as many examples do)
   ends up several seconds behind real time by the time it actually runs. To
   avoid that, the compile-time set is only ever used as a first-boot
-  fallback (RTC never set / lost battery backup) - see the "Set Time" BLE
-  characteristic below for the accurate way to set it.
+  fallback (RTC never set / lost battery backup) - use the dashboard's
+  **"Sync time from phone"** button for the accurate way to set it.
 
 ### Presets
 
@@ -65,72 +66,17 @@ Defined in [AquariumLighting/Presets.cpp](AquariumLighting/Presets.cpp) as a whi
 percentage plus a red/green/blue percentage for the RGB strip. Edit that file
 to change the 3 default presets (`Daylight`, `Sunset`, `Moonlight`).
 
-### BLE app control
+### Dashboard control
 
-- Brightness/color values sent from the app **only apply while the light is
-  on**; writes are ignored while the switch has the light off.
+- Brightness/color/preset values sent from the dashboard **only apply while
+  the light is on**; controls are shown disabled (with a tap-to-explain
+  toast) while the switch has the light off.
 - Turning the light off and back on (whether via the switch or by leaving it
-  off a long time) **discards any BLE customization** and reapplies the
-  currently stored preset - customizing color/brightness from the app is a
-  temporary override on top of a preset, not a new saved state.
-- The app can read: on/off state, active preset index, and the current
-  white/red/green/blue percentages (0-100 each).
-
-See BLE protocol details below. For step-by-step instructions on reading/
-writing values and viewing logs with Nordic's nRF Connect app (iOS), see
-[NRF_CONNECT_GUIDE.md](NRF_CONNECT_GUIDE.md).
-
-## BLE Protocol
-
-Device advertises as **`Aquarium Light`** with one custom GATT service.
-
-Service UUID: `24360cf0-21b2-4948-ae20-246a7df5695b`
-
-All values are a single unsigned byte (`uint8`).
-
-| Characteristic | UUID                                   | Properties          | Range / meaning                          |
-|-----------------|-----------------------------------------|----------------------|-------------------------------------------|
-| On/Off state    | `321675d4-daa7-49d7-8fdf-79d83f62b51e` | Read, Notify         | `0` = off, `1` = on                       |
-| Active preset   | `70796f44-9ba4-481b-a846-bc1e16a00342` | Read, Notify         | `0`-`2` (index into the 3 presets)        |
-| White brightness| `f1af25c5-8e16-41e3-b5f9-b7caeaef25d3` | Read, Write, Notify  | `0`-`100` (%)                              |
-| Red             | `6c6468b6-7a0d-4c16-88be-8f8bce4a0e68` | Read, Write, Notify  | `0`-`100` (%)                              |
-| Green           | `df416687-5b23-4be2-a479-ca5abbea83f4` | Read, Write, Notify  | `0`-`100` (%)                              |
-| Blue            | `73d9d82e-de50-424b-b91b-bd90e502758a` | Read, Write, Notify  | `0`-`100` (%)                              |
-| Set Time        | `8f2ac0d1-3e1a-4c8b-9a2f-6b1d5e8c4a2b` | Write                | `uint32`, little-endian Unix epoch seconds |
-| Debug Log       | `b3d9a6e2-7c44-4b6a-9a3d-1f6e2c9a7d10` | Read, Notify         | UTF-8 text, one log line per notification  |
-| WiFi IP address | `5a2c9e14-6f3b-4b8a-9d21-3c7e8a4f9b60` | Read, Notify         | UTF-8 text, e.g. `192.168.1.42` or `Not connected` |
-
-Notes:
-- All read/notify characteristics have a CCCD (`0x2902`) so an app can
-  subscribe to notifications and stay in sync without polling.
-- Every value change - switch on/off, preset changes, BLE writes, and the
-  scheduled animation/fade-in (throttled to every ~150 ms while it's actively
-  ramping) - is pushed to all read/notify characteristics, so a subscribed
-  app always converges to the true current state.
-- Writing to White/Red/Green/Blue while the light is off is rejected: the
-  characteristic is reset back to its actual current value and no change is
-  applied - so the app should treat a notify-without-matching-write as "my
-  change was rejected."
-- Red/Green/Blue are independent channels; send all three (in combination)
-  to mix a color, same as normal RGB color mixing.
-- **Set Time**: write the current Unix epoch time (seconds since
-  1970-01-01 UTC) as a little-endian `uint32` to set the DS3231 accurately.
-  Since the phone's clock is normally NTP-synced, this avoids the time skew
-  caused by upload latency that a compile-time set would have. Send this
-  once after pairing (and any time you suspect drift).
-- **Debug Log**: subscribe to this characteristic to receive the same log
-  lines that are printed to the Serial monitor (setup steps, switch/preset
-  changes, schedule events, RTC time, every accepted/rejected BLE write,
-  etc.) - useful for checking behavior without a USB connection.
-- **WiFi IP address**: subscribe to this characteristic to read the web
-  dashboard's current IP without needing a Serial connection. It starts as
-  `Not connected` at boot and updates once WiFi connects, then again every
-  minute (the same cadence the Debug Log reports WiFi status on).
+  off a long time) **discards any dashboard customization** and reapplies the
+  currently stored preset - customizing color/brightness from the dashboard
+  is a temporary override on top of a preset, not a new saved state.
 
 ## Web Dashboard (Koi Tank Controls)
-
-A fully separate, additive control path - it does not read or modify any BLE
-code, and the two can be used interchangeably at the same time.
 
 1. Set your WiFi credentials in [AquariumLighting/Config.h](AquariumLighting/Config.h):
    `WIFI_SSID` / `WIFI_PASSWORD`.
@@ -146,11 +92,14 @@ code, and the two can be used interchangeably at the same time.
 Dashboard features:
 
 - **Status**: read-only on/off badge, active preset name, and the current
-  ESP32/DS3231 time. On/off is intentionally **not** a dashboard control -
-  only the physical switch turns the light on/off.
-- **Preset**: buttons to jump directly to any of the 3 presets. Like BLE
-  writes, this **only takes effect while the light is on** - if it's off,
-  the dashboard shows a toast and the request is rejected server-side.
+  ESP32/DS3231 time (ticks live between polls). On/off is intentionally
+  **not** a dashboard control - only the physical switch turns the light
+  on/off. A **"Sync time from phone"** button sets the DS3231 from the
+  browser's clock.
+- **Preset**: buttons to jump directly to any of the 3 presets. This
+  **only takes effect while the light is on** - if it's off, the preset,
+  white brightness and RGB color cards are shown dimmed/disabled and tapping
+  them shows a toast explaining why.
 - **White brightness**: a slider, 0-100%.
 - **RGB color**: a gradient square (drag to pick saturation/brightness) plus
   a hue slider, similar to the font-color pickers in document editors. The
@@ -158,16 +107,16 @@ Dashboard features:
   project's [existing design](#why-rgb-brightness-is-folded-into-rg-directly)
   of folding brightness directly into the R/G/B percentages rather than a
   separate brightness control.
-- **Daily schedule**: an editable time picker (replaces the old
-  compile-time-only `SCHEDULE_HOUR`/`SCHEDULE_MINUTE`) - saving reprograms
-  the DS3231 alarm immediately and persists the new time to flash (NVS), so
-  it survives reboots.
+- **Daily schedule**: a toggle to enable/disable the schedule, and an
+  editable time picker (replaces the old compile-time-only
+  `SCHEDULE_HOUR`/`SCHEDULE_MINUTE`, disabled while the schedule is off) -
+  saving reprograms the DS3231 alarm immediately and persists both the time
+  and enabled state to flash (NVS), so they survive reboots.
 - **Live logs**: a toggle that opens a WebSocket only while switched on, so
   log streaming to your phone is fully opt-in and stops the instant you
-  switch it off (same log lines as Serial/BLE, see [Logging](#logging)).
+  switch it off (same log lines as Serial, see [Logging](#logging)).
 
-Required libraries (in addition to the BLE ones, see
-[Building & Uploading](#building--uploading-arduino-ide)):
+Required libraries (see [Building & Uploading](#building--uploading-arduino-ide)):
 - **ESPAsyncWebServer** and its dependency **AsyncTCP** (install both via
   Arduino Library Manager). `WiFi.h`/`ESPmDNS.h` are bundled with the ESP32
   core.
@@ -191,26 +140,26 @@ requested. See [AquariumLighting/RgbStrip.cpp](AquariumLighting/RgbStrip.cpp).
 ```
 AquariumLighting/
   AquariumLighting.ino   Sketch entry point: setup()/loop(), wires all modules together
-  Config.h               All pin numbers, timing constants, and BLE UUIDs in one place
+  Config.h               All pin numbers and timing constants in one place
   WhiteStrip.h/.cpp       PWM control of the white LED strip via ESP32 LEDC
   RgbStrip.h/.cpp         Addressable RGB strip control via Adafruit_NeoPixel
   SwitchInput.h/.cpp      Debounced on/off switch reader, reports TurnedOn/TurnedOff events
-  Buzzer.h/.cpp           Non-blocking 300 ms beep on power-on and mode changes
-  RtcManager.h/.cpp       DS3231 wrapper: time keeping, BLE-driven time set, daily alarm
+  Buzzer.h/.cpp           Non-blocking 100 ms beep on power-on and mode changes
+  RtcManager.h/.cpp       DS3231 wrapper: time keeping, dashboard-driven time set,
+                          daily alarm with an enable/disable flag
   Presets.h/.cpp          The 3 preset definitions (white % + RGB %)
   StateManager.h/.cpp     Core logic: preset selection/cycling, persistence (NVS),
                           on/off state, the scheduled animation/fade-in sequence,
-                          applies values to WhiteStrip/RgbStrip/Buzzer, validates BLE writes
-  BleController.h/.cpp    BLE GATT server: exposes StateManager's state to the app,
-                          forwards write/set-time requests, and streams the debug log
+                          applies values to WhiteStrip/RgbStrip/Buzzer, validates
+                          dashboard writes
   WebDashboard.h/.cpp     Hosts the "Koi Tank Controls" WiFi web dashboard (WiFi connect,
                           HTTP+WebSocket server, Basic Auth, embedded HTML/CSS/JS UI)
-  Logger.h/.cpp           Mirrors log lines to Serial, the Debug Log BLE characteristic,
-                          and (while a client has it open) the dashboard's live log stream
+  Logger.h/.cpp           Mirrors log lines to Serial and (while a client has it open)
+                          the dashboard's live log stream
 ```
 
 Responsibilities are kept single-purpose per file so each hardware concern
-(white PWM, RGB strip, switch, buzzer, RTC, BLE) can be read/edited
+(white PWM, RGB strip, switch, buzzer, RTC) can be read/edited
 independently of the others. `StateManager` is the only place that decides
 *what* the lights show; the other modules only know how to drive their piece
 of hardware or report raw input.
@@ -218,12 +167,11 @@ of hardware or report raw input.
 ## Logging
 
 All significant events - boot steps, switch/preset changes, the schedule
-alarm firing, RTC time changes, rejected BLE writes, and BLE
-connect/disconnect - are logged via [AquariumLighting/Logger.h](AquariumLighting/Logger.h),
-which writes to both:
+alarm firing, and RTC time changes - are logged via
+[AquariumLighting/Logger.h](AquariumLighting/Logger.h), which writes to both:
 - The **Serial monitor** at 115200 baud.
-- The **Debug Log** BLE characteristic (see BLE Protocol below), so you can
-  see the same log lines in a phone app without a USB cable.
+- The dashboard's **live log stream** (see [Web Dashboard](#web-dashboard-koi-tank-controls)
+  above), so you can see the same log lines in a phone browser without a USB cable.
 
 ## Building & Uploading (Arduino IDE)
 
@@ -237,27 +185,25 @@ which writes to both:
    prompted) - used to talk to the DS3231.
 4. Install **ESPAsyncWebServer** and its dependency **AsyncTCP** (Tools >
    Manage Libraries, search each by name) - used by the web dashboard.
-5. `Preferences.h`, `Wire.h`, `WiFi.h`, `ESPmDNS.h` and the
-   `BLEDevice`/`BLEServer`/etc. headers are bundled with the ESP32 core - no
-   separate install needed.
+5. `Preferences.h`, `Wire.h`, `WiFi.h` and `ESPmDNS.h` are bundled with the
+   ESP32 core - no separate install needed.
 6. Open `AquariumLighting/AquariumLighting.ino` in the Arduino IDE.
 7. Set `WIFI_SSID`/`WIFI_PASSWORD` in `Config.h` for the web dashboard (see
    [Web Dashboard](#web-dashboard-koi-tank-controls) above).
 8. Select your ESP32 board and port under Tools, then set **Tools > Partition
    Scheme** to **"Huge APP (3MB No OTA/1MB SPIFFS)"** (or "No OTA (2MB
-   APP/2MB SPIFFS)"). The combined WiFi+BLE+web server binary (~1.8MB)
-   doesn't fit in the default "with spiffs" scheme's 1.2MB app slot - this
-   project doesn't use SPIFFS/LittleFS, so that space isn't needed anyway.
+   APP/2MB SPIFFS)"). This project doesn't use SPIFFS/LittleFS, so that
+   space isn't needed anyway.
 9. Adjust `RGB_LED_COUNT` and any pin numbers in `Config.h` to match your
    hardware before uploading.
-10. After the first upload, write the current time to the **Set Time** BLE
-    characteristic from your app so the DS3231 has accurate time (see BLE
-    Protocol above) - the compile-time fallback is only approximate.
+10. After the first upload, use the dashboard's **"Sync time from phone"**
+    button so the DS3231 has accurate time - the compile-time fallback is
+    only approximate.
 
 ## Customizing
 
 - **Presets**: edit the `PRESETS` array in `Presets.cpp`.
-- **Pins / timing / BLE UUIDs**: edit `Config.h`.
+- **Pins / timing**: edit `Config.h`.
 - **Switch debounce window**: `SWITCH_DEBOUNCE_MS` in `Config.h` (default 400 ms).
   If a light/incidental touch on the switch still causes unwanted toggles
   after raising this, it's noise pickup on the wire rather than bounce - add
@@ -272,4 +218,4 @@ which writes to both:
   `SCHEDULE_FADEIN_MS` (default 2 s) in `Config.h`.
 - **Preset applied after the schedule animation**:
   `SCHEDULE_DEFAULT_PRESET_INDEX` in `Config.h` (default `0`).
-- **Buzzer beep length**: `BUZZER_BEEP_MS` in `Config.h` (default 300 ms).
+- **Buzzer beep length**: `BUZZER_BEEP_MS` in `Config.h` (default 100 ms).

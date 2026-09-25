@@ -1,6 +1,6 @@
 #pragma once
 // ---------------------------------------------------------------------------
-// Central place for every pin assignment, timing constant and BLE UUID.
+// Central place for every pin assignment and timing constant.
 // Change values here rather than hunting through the other modules.
 // ---------------------------------------------------------------------------
 
@@ -60,33 +60,16 @@
 #define PREFS_KEY_PRESET_INDEX     "presetIdx"
 #define PREFS_KEY_SCHEDULE_HOUR    "schedHour"
 #define PREFS_KEY_SCHEDULE_MINUTE  "schedMin"
+#define PREFS_KEY_SCHEDULE_ENABLED "schedEn"
 
 // ---- WiFi (for the on-device web dashboard) ----
 #define WIFI_SSID                  "YOUR_WIFI_SSID"      // <-- CHANGE THIS
 #define WIFI_PASSWORD              "YOUR_WIFI_PASSWORD"  // <-- CHANGE THIS
 
-// ---- Web dashboard (local network only, separate from BLE) ----
-// TEMP diagnostic: moved off 80 to test if port 80 itself is being blocked
-// (e.g. router/AP "IoT security" filtering) vs. an AsyncTCP/AsyncWebServer
-// bug - Test-NetConnection <ip> -Port 8080 after reflashing. Revert to 80
-// once resolved.
-#define WEB_SERVER_PORT            8080
+// ---- Web dashboard (local network only) ----
+#define WEB_SERVER_PORT            80
 
 #define WEB_AUTH_USERNAME          "admin"
 #define WEB_AUTH_PASSWORD          "admin"
 #define DASHBOARD_MDNS_HOSTNAME    "koitank"              // http://koitank.local/
 
-// ---- Bluetooth Low Energy ----
-#define BLE_DEVICE_NAME            "Aquarium Light"
-
-// Custom 128-bit UUIDs generated for this project (random, no external meaning).
-#define SERVICE_UUID       "24360cf0-21b2-4948-ae20-246a7df5695b"
-#define CHAR_ONOFF_UUID    "321675d4-daa7-49d7-8fdf-79d83f62b51e"  // read+notify, uint8 0/1
-#define CHAR_PRESET_UUID   "70796f44-9ba4-481b-a846-bc1e16a00342"  // read+notify, uint8 0-2
-#define CHAR_WHITE_UUID    "f1af25c5-8e16-41e3-b5f9-b7caeaef25d3"  // read+write+notify, uint8 0-100 (%)
-#define CHAR_RED_UUID      "6c6468b6-7a0d-4c16-88be-8f8bce4a0e68"  // read+write+notify, uint8 0-100 (%)
-#define CHAR_GREEN_UUID    "df416687-5b23-4be2-a479-ca5abbea83f4"  // read+write+notify, uint8 0-100 (%)
-#define CHAR_BLUE_UUID     "73d9d82e-de50-424b-b91b-bd90e502758a"  // read+write+notify, uint8 0-100 (%)
-#define CHAR_SETTIME_UUID  "8f2ac0d1-3e1a-4c8b-9a2f-6b1d5e8c4a2b"  // write, uint32 little-endian Unix epoch seconds
-#define CHAR_LOG_UUID      "b3d9a6e2-7c44-4b6a-9a3d-1f6e2c9a7d10"  // read+notify, UTF-8 text log line (mirrors Serial output)
-#define CHAR_IP_UUID       "5a2c9e14-6f3b-4b8a-9d21-3c7e8a4f9b60"  // read+notify, UTF-8 text WiFi IP address (or "Not connected")

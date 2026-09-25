@@ -26,17 +26,17 @@ public:
   void handleScheduledTrigger();
 
   // Call every loop() iteration - advances any in-progress scheduled
-  // animation/fade-in. No-op the rest of the time.
+  // animation/fade-in, and applies any pending write from setWhite/Red/
+  // Green/BluePercent()/setPresetIndex(). No-op the rest of the time.
   void update();
 
-  // True if white/RGB/preset output values changed since the last call to
-  // clearOutputsChanged() - lets loop() know BLE notifications are stale
-  // (e.g. during/after the scheduled animation's fade-in).
-  bool outputsChanged() const { return outputsDirty; }
-  void clearOutputsChanged() { outputsDirty = false; }
-
-  // BLE write requests. Return true if applied, false if rejected (light off).
-  // On rejection the tracked/reported value is left unchanged.
+  // Write requests from the web dashboard (runs on the AsyncWebServer
+  // callback task, not the main loop() task). These only update the
+  // tracked percent values and flag a pending hardware write - the actual
+  // whiteStrip/rgbStrip I/O always happens from update() on the main task,
+  // to avoid two tasks touching the NeoPixel driver concurrently (which
+  // caused briefly-wrong colors when a preset was selected). Return true if
+  // applied, false if rejected (light off).
   bool setWhiteBrightnessPercent(uint8_t percent);
   bool setRedPercent(uint8_t percent);
   bool setGreenPercent(uint8_t percent);
@@ -46,8 +46,8 @@ public:
   // Only applies while the light is on; returns false (no-op) otherwise.
   bool setPresetIndex(uint8_t index);
 
-  // BLE read accessors - always reflect what the strips currently show (or,
-  // while off, what they will show again once switched back on).
+  // Always reflect what the strips currently show (or, while off, what
+  // they will show again once switched back on).
   bool isOn() const { return lightOn; }
   uint8_t getPresetIndex() const { return presetIndex; }
   uint8_t getWhitePercent() const { return whitePercent; }
@@ -74,7 +74,7 @@ private:
   bool lightOn = false;
   uint8_t presetIndex = 0;
 
-  // Currently active values, either from the preset or overridden via BLE.
+  // Currently active values, either from the preset or overridden via the web dashboard.
   uint8_t whitePercent = 0;
   uint8_t redPercent = 0;
   uint8_t greenPercent = 0;
@@ -91,5 +91,5 @@ private:
   uint8_t fadeTargetGreen = 0;
   uint8_t fadeTargetBlue = 0;
 
-  bool outputsDirty = false;
+  bool pendingHwApply = false; // set by web-task setters, applied in update()
 };
