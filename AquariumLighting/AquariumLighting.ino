@@ -96,7 +96,9 @@ void loop() {
 
   // WiFi connects during webDashboard.begin() and may drop/reconnect later;
   // report status+IP/network details on a slow cadence rather than
-  // flooding the log.
+  // flooding the log. Free heap is included since running BLE + WiFi +
+  // AsyncWebServer together can slowly exhaust it, which would otherwise
+  // look like an unexplained "dashboard stopped responding".
   static unsigned long lastWifiLogMs = 0;
   if (millis() - lastWifiLogMs >= 60000UL) {
     lastWifiLogMs = millis();
@@ -104,14 +106,15 @@ void loop() {
     String ip = connected ? WiFi.localIP().toString() : "Not connected";
     if (connected) {
       Logger::logf(
-          "WiFi status: CONNECTED, IP: %s, Gateway: %s, Subnet: %s, RSSI: %ddBm, MAC: %s",
+          "WiFi status: CONNECTED, IP: %s, Gateway: %s, Subnet: %s, RSSI: %ddBm, MAC: %s, FreeHeap: %u",
           ip.c_str(),
           WiFi.gatewayIP().toString().c_str(),
           WiFi.subnetMask().toString().c_str(),
           WiFi.RSSI(),
-          WiFi.macAddress().c_str());
+          WiFi.macAddress().c_str(),
+          ESP.getFreeHeap());
     } else {
-      Logger::logf("WiFi status: DISCONNECTED, MAC: %s", WiFi.macAddress().c_str());
+      Logger::logf("WiFi status: DISCONNECTED, MAC: %s, FreeHeap: %u", WiFi.macAddress().c_str(), ESP.getFreeHeap());
     }
     bleController.updateIpAddress(ip);
   }

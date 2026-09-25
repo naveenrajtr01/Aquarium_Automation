@@ -61,6 +61,28 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
   }
 }
 
+// Surfaces WiFi link flaps (association drops, DHCP re-lease, etc.) that
+// would otherwise look like "the dashboard randomly stops responding" with
+// no clue why - reason codes match IDF's wifi_err_reason_t.
+void onWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
+  switch (event) {
+    case ARDUINO_EVENT_WIFI_STA_CONNECTED:
+      Logger::log("WiFi event: associated with AP");
+      break;
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+      Logger::logf("WiFi event: DISCONNECTED (reason code %u)", info.wifi_sta_disconnected.reason);
+      break;
+    case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+      Logger::logf("WiFi event: GOT_IP %s", WiFi.localIP().toString().c_str());
+      break;
+    case ARDUINO_EVENT_WIFI_STA_LOST_IP:
+      Logger::log("WiFi event: LOST_IP");
+      break;
+    default:
+      break;
+  }
+}
+
 const char DASHBOARD_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -402,6 +424,7 @@ void WebDashboard::begin(StateManager *stateManager, RtcManager *rtcManager) {
   WiFi.persistent(true);
   WiFi.setAutoReconnect(true);
   WiFi.mode(WIFI_STA);
+  WiFi.onEvent(onWifiEvent);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   Logger::logf("Connecting to WiFi '%s'...", WIFI_SSID);
@@ -425,6 +448,30 @@ void WebDashboard::begin(StateManager *stateManager, RtcManager *rtcManager) {
   g_logSocket.onEvent(onWsEvent);
   g_server.addHandler(&g_logSocket);
   Logger::attachWebSink(pushLogToWeb);
+
+  // No-auth reachability probe for debugging "can't reach the dashboard"
+  // issues - if this fails from a phone, the problem is network-level
+  // (routing/isolation) rather than anything in the app logic below.
+  g_server.on("/api/ping", HTTP_GET, [](AsyncWebServerRequest *request) {
+    Logger::logf("Ping from %s", request->client()->remoteIP().toString().c_str());
+    String json = "{\"pong\":true,\"ip\":\"";
+    json += WiFi.localIP().toString();
+    json += "\",\"rssi\":";
+    json += WiFi.RSSI();
+    json += ",\"uptimeMs\":";
+    json += millis();
+    json += ",\"freeHeap\":";
+    json += ESP.getFreeHeap();
+    json += "}";
+    request->send(200, "application/json", json);
+  });
+
+  g_server.onNotFound([](AsyncWebServerRequest *request) {
+    Logger::logf("Unmatched request: %s %s from %s",
+                 request->methodToString(), request->url().c_str(),
+                 request->client()->remoteIP().toString().c_str());
+    request->send(404, "text/plain", "Not found");
+  });
 
   g_server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (!ensureAuth(request)) return;
