@@ -230,7 +230,9 @@ void BleController::begin(
       BLECharacteristic::PROPERTY_NOTIFY);
 
   g_ipChar->addDescriptor(new BLE2902());
-  writeStringAndNotify(g_ipChar, "Not connected");
+  // setValue only - notify() before service->start() crashes the BLE stack
+  // (attribute handles aren't registered yet).
+  g_ipChar->setValue("Not connected");
 
   service->start();
 
