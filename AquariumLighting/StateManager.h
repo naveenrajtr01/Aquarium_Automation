@@ -119,6 +119,10 @@ private:
   // to strike, so only resend the strip that actually changed.
   bool pendingWhiteApply = false;
   bool pendingRgbApply = false;
+  // Set by setPresetIndex() (web task); applied by update() (main loop
+  // task) so the NVS flash write never runs concurrently with a NeoPixel
+  // transmission on the other core - see hardware-quirks in repo notes.
+  bool pendingPresetSave = false;
 
   // RGB channel-balance calibration, live-tunable from the dashboard.
   uint8_t wbRedScale = RGB_CHANNEL_R_SCALE;

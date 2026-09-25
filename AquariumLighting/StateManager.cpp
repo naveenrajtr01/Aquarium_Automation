@@ -98,9 +98,14 @@ void StateManager::update() {
   bool whiteApplyNow = false;
   bool rgbApplyNow = false;
   bool wbApplyNow = false;
+  bool presetSaveNow = false;
   uint8_t whiteSnap = 0, redSnap = 0, greenSnap = 0, blueSnap = 0;
   uint8_t wbRSnap = 0, wbGSnap = 0, wbBSnap = 0;
   portENTER_CRITICAL(&percentMux);
+  if (pendingPresetSave) {
+    pendingPresetSave = false;
+    presetSaveNow = true;
+  }
   if (pendingWhiteApply) {
     pendingWhiteApply = false;
     whiteApplyNow = true;
@@ -125,6 +130,17 @@ void StateManager::update() {
     blueSnap = bluePercent;
   }
   portEXIT_CRITICAL(&percentMux);
+
+  // NVS/flash writes stall the instruction cache on BOTH cores for their
+  // duration - doing this here (main loop task) instead of on the
+  // AsyncWebServer task means it can never overlap a NeoPixel bit-bang
+  // transmission in progress on this same task (they're strictly
+  // sequential), whereas doing it from the web task could freeze this
+  // task mid-transmission on the other core and corrupt the strip into
+  // random colors.
+  if (presetSaveNow) {
+    savePresetIndexToStorage();
+  }
 
   if (whiteApplyNow && lightOn) {
     whiteStrip->setBrightnessPercent(whiteSnap);
@@ -314,13 +330,13 @@ bool StateManager::setPresetIndex(uint8_t index) {
   if (index >= NUM_PRESETS) return false;
 
   presetIndex = index;
-  savePresetIndexToStorage();
   if (buzzer) buzzer->beep();
 
   const Preset &p = PRESETS[presetIndex];
   portENTER_CRITICAL(&percentMux);
   pendingWhiteApply = true;
   pendingRgbApply = true;
+  pendingPresetSave = true;
   whitePercent = p.whitePercent;
   redPercent = p.redPercent;
   greenPercent = p.greenPercent;
