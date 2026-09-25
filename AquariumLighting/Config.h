@@ -39,6 +39,14 @@
 // (on or off) color on this interval so any glitch self-heals within a few
 // seconds.
 #define RGB_SELF_HEAL_INTERVAL_MS  3000UL
+// Field-tested: RGB color corruption is far more frequent while the White
+// strip's PWM output is actively driving current (field-confirmed - stable
+// with White at 0%, glitchy with White >0%) - most likely EMI/ground-bounce
+// from the 5kHz PWM switching coupling onto the RGB data line/5V rail. This
+// is a hardware signal-integrity issue that self-heal only masks, but a
+// shorter interval while White is on shortens each glitch's visible
+// duration.
+#define RGB_SELF_HEAL_INTERVAL_WHITE_ON_MS  750UL
 
 // ---- On/Off + preset-cycling switch ----
 #define SWITCH_PIN                 19      // Switch wired between this pin and GND (internal pull-up used)

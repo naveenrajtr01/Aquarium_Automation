@@ -165,7 +165,11 @@ void StateManager::update() {
   // so a transient WS2812 transmission glitch (a stray lit pixel/patch that
   // sticks until the next full re-send) self-heals without needing the user
   // to toggle the switch or reselect the preset.
-  if (phase == Phase::Normal && now - lastRgbRefreshMs >= RGB_SELF_HEAL_INTERVAL_MS) {
+  // Field-tested: glitches are far more frequent while whitePercent > 0
+  // (White strip's PWM switching noise coupling onto the RGB data line) -
+  // heal faster in that case to shorten each glitch's visible duration.
+  unsigned long healInterval = (whitePercent > 0) ? RGB_SELF_HEAL_INTERVAL_WHITE_ON_MS : RGB_SELF_HEAL_INTERVAL_MS;
+  if (phase == Phase::Normal && now - lastRgbRefreshMs >= healInterval) {
     lastRgbRefreshMs = now;
     if (lightOn) {
       // Snapshot under the mutex - reading the 3 channel fields directly
