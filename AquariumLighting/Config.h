@@ -66,7 +66,12 @@
 #define WIFI_PASSWORD              "YOUR_WIFI_PASSWORD"  // <-- CHANGE THIS
 
 // ---- Web dashboard (local network only, separate from BLE) ----
-#define WEB_SERVER_PORT            80
+// TEMP diagnostic: moved off 80 to test if port 80 itself is being blocked
+// (e.g. router/AP "IoT security" filtering) vs. an AsyncTCP/AsyncWebServer
+// bug - Test-NetConnection <ip> -Port 8080 after reflashing. Revert to 80
+// once resolved.
+#define WEB_SERVER_PORT            8080
+
 #define WEB_AUTH_USERNAME          "admin"
 #define WEB_AUTH_PASSWORD          "admin"
 #define DASHBOARD_MDNS_HOSTNAME    "koitank"              // http://koitank.local/
