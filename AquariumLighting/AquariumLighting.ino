@@ -37,6 +37,11 @@ StateManager stateManager;
 BleController bleController;
 WebDashboard webDashboard;
 
+// Temporary diagnostic: a bare WiFiServer bypassing AsyncTCP/ESPAsyncWebServer
+// entirely, to tell whether "can't reach port 80" is those libraries or the
+// underlying WiFi/TCP stack. Test with: Test-NetConnection <ip> -Port 8081
+WiFiServer diagServer(8081);
+
 void setup() {
   Logger::begin(115200);
   Logger::log("Booting Aquarium Lighting controller...");
@@ -68,6 +73,9 @@ void setup() {
   // the BLE control path above.
   webDashboard.begin(&stateManager, &rtcManager);
 
+  diagServer.begin();
+  Logger::log("Diagnostic raw TCP server listening on port 8081");
+
   Logger::log("Setup complete");
 }
 
@@ -93,6 +101,14 @@ void loop() {
   stateManager.update();
 
   webDashboard.update();
+
+  // Bare-bones reachability probe, independent of AsyncTCP/ESPAsyncWebServer.
+  WiFiClient diagClient = diagServer.available();
+  if (diagClient) {
+    Logger::logf("Diagnostic TCP client connected from %s", diagClient.remoteIP().toString().c_str());
+    diagClient.print("OK\n");
+    diagClient.stop();
+  }
 
   // WiFi connects during webDashboard.begin() and may drop/reconnect later;
   // report status+IP/network details on a slow cadence rather than

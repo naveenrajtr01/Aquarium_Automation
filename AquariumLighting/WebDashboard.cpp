@@ -424,6 +424,12 @@ void WebDashboard::begin(StateManager *stateManager, RtcManager *rtcManager) {
   WiFi.persistent(true);
   WiFi.setAutoReconnect(true);
   WiFi.mode(WIFI_STA);
+  // Disable WiFi modem sleep (power save). With BLE advertising running
+  // concurrently, WiFi power-save puts the radio into a low-power receive
+  // schedule that can miss/delay incoming TCP SYN packets - the ESP32 still
+  // answers ICMP pings (handled differently) but refuses new TCP connections
+  // on ports it's actively listening on. This must be set before WiFi.begin().
+  WiFi.setSleep(false);
   WiFi.onEvent(onWifiEvent);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
