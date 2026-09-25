@@ -92,4 +92,11 @@ private:
   uint8_t fadeTargetBlue = 0;
 
   bool pendingHwApply = false; // set by web-task setters, applied in update()
+
+  // Guards whitePercent/redPercent/greenPercent/bluePercent/pendingHwApply,
+  // which are written from the AsyncWebServer callback task (the setters
+  // above) and read from the main loop() task (update()). Without this,
+  // the four percent fields could be read mid-write - torn across two
+  // tasks - producing a briefly wrong/stale color.
+  portMUX_TYPE percentMux = portMUX_INITIALIZER_UNLOCKED;
 };

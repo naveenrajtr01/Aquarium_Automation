@@ -93,9 +93,22 @@ void StateManager::startScheduledSequence() {
 }
 
 void StateManager::update() {
+  bool applyNow = false;
+  uint8_t whiteSnap = 0, redSnap = 0, greenSnap = 0, blueSnap = 0;
+  portENTER_CRITICAL(&percentMux);
   if (pendingHwApply) {
     pendingHwApply = false;
-    if (lightOn) pushValuesToOutputs();
+    applyNow = true;
+    whiteSnap = whitePercent;
+    redSnap = redPercent;
+    greenSnap = greenPercent;
+    blueSnap = bluePercent;
+  }
+  portEXIT_CRITICAL(&percentMux);
+
+  if (applyNow && lightOn) {
+    whiteStrip->setBrightnessPercent(whiteSnap);
+    rgbStrip->setColorPercent(redSnap, greenSnap, blueSnap);
   }
 
   if (!lightOn || phase == Phase::Normal) return;
@@ -168,29 +181,41 @@ void StateManager::renderFadeIn(unsigned long elapsedMs) {
 
 bool StateManager::setWhiteBrightnessPercent(uint8_t percent) {
   if (!lightOn) return false;
-  whitePercent = min<uint8_t>(percent, 100);
+  uint8_t clamped = min<uint8_t>(percent, 100);
+  portENTER_CRITICAL(&percentMux);
+  whitePercent = clamped;
   pendingHwApply = true;
+  portEXIT_CRITICAL(&percentMux);
   return true;
 }
 
 bool StateManager::setRedPercent(uint8_t percent) {
   if (!lightOn) return false;
-  redPercent = min<uint8_t>(percent, 100);
+  uint8_t clamped = min<uint8_t>(percent, 100);
+  portENTER_CRITICAL(&percentMux);
+  redPercent = clamped;
   pendingHwApply = true;
+  portEXIT_CRITICAL(&percentMux);
   return true;
 }
 
 bool StateManager::setGreenPercent(uint8_t percent) {
   if (!lightOn) return false;
-  greenPercent = min<uint8_t>(percent, 100);
+  uint8_t clamped = min<uint8_t>(percent, 100);
+  portENTER_CRITICAL(&percentMux);
+  greenPercent = clamped;
   pendingHwApply = true;
+  portEXIT_CRITICAL(&percentMux);
   return true;
 }
 
 bool StateManager::setBluePercent(uint8_t percent) {
   if (!lightOn) return false;
-  bluePercent = min<uint8_t>(percent, 100);
+  uint8_t clamped = min<uint8_t>(percent, 100);
+  portENTER_CRITICAL(&percentMux);
+  bluePercent = clamped;
   pendingHwApply = true;
+  portEXIT_CRITICAL(&percentMux);
   return true;
 }
 
@@ -201,9 +226,16 @@ bool StateManager::setPresetIndex(uint8_t index) {
   presetIndex = index;
   savePresetIndexToStorage();
   if (buzzer) buzzer->beep();
-  applyPresetValues();
+
+  const Preset &p = PRESETS[presetIndex];
+  portENTER_CRITICAL(&percentMux);
+  whitePercent = p.whitePercent;
+  redPercent = p.redPercent;
+  greenPercent = p.greenPercent;
+  bluePercent = p.bluePercent;
   phase = Phase::Normal;
   pendingHwApply = true;
+  portEXIT_CRITICAL(&percentMux);
   Logger::logf("Preset set directly to %d (%s)", presetIndex, PRESETS[presetIndex].name);
   return true;
 }

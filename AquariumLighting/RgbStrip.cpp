@@ -27,7 +27,7 @@ void RgbStrip::setColorPercent(uint8_t redPercent, uint8_t greenPercent, uint8_t
   for (uint16_t i = 0; i < strip.numPixels(); i++) {
     strip.setPixelColor(i, color);
   }
-  strip.show();
+  show();
 }
 
 void RgbStrip::off() {
@@ -39,6 +39,13 @@ void RgbStrip::setPixelRGB(uint16_t index, uint8_t r, uint8_t g, uint8_t b) {
 }
 
 void RgbStrip::show() {
+  // WS2812's single-wire protocol is timing-sensitive, and WiFi's radio
+  // interrupts run at a priority high enough to preempt it - occasionally
+  // corrupting a pixel or two mid-transmission (seen as a stray stuck
+  // red/blue pixel that needs a second update to clear). Re-sending the
+  // identical frame immediately after is cheap (<1ms for a short strip)
+  // and self-heals any single glitched transmission.
+  strip.show();
   strip.show();
 }
 

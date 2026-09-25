@@ -53,7 +53,6 @@ void setup() {
   Logger::logf("Switch ready (GPIO19, currently %s)", switchInput.isClosed() ? "CLOSED/ON" : "OPEN/OFF");
 
   buzzer.begin();
-  buzzer.beep(); // brief power-on chime
   Logger::log("Buzzer ready (GPIO32)");
 
   rtcManager.begin();
@@ -65,6 +64,12 @@ void setup() {
   stateManager.applyInitialState(switchInput.isClosed());
 
   webDashboard.begin(&stateManager, &rtcManager);
+
+  // Beep only after the blocking WiFi-connect wait in webDashboard.begin()
+  // (up to 15s) - buzzer.update(), which turns the beep back off after
+  // BUZZER_BEEP_MS, is only called from loop(), so beeping any earlier
+  // left the buzzer stuck on for the whole blocking wait.
+  buzzer.beep(); // brief power-on chime
 
   diagServer.begin();
   Logger::log("Diagnostic raw TCP server listening on port 8081");

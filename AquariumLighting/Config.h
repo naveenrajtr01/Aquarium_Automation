@@ -69,6 +69,7 @@
 // ---- Web dashboard (local network only) ----
 #define WEB_SERVER_PORT            80
 
+#define WEB_AUTH_ENABLED           false   // set true to require the login below
 #define WEB_AUTH_USERNAME          "admin"
 #define WEB_AUTH_PASSWORD          "admin"
 #define DASHBOARD_MDNS_HOSTNAME    "koitank"              // http://koitank.local/

@@ -15,6 +15,7 @@ AsyncWebServer g_server(WEB_SERVER_PORT);
 AsyncWebSocket g_logSocket("/ws/logs");
 
 bool ensureAuth(AsyncWebServerRequest *request) {
+  if (!WEB_AUTH_ENABLED) return true;
   if (!request->authenticate(WEB_AUTH_USERNAME, WEB_AUTH_PASSWORD)) {
     request->requestAuthentication();
     return false;
@@ -90,6 +91,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Koi Tank Controls</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%F0%9F%90%9F</text></svg>">
 <style>
   :root { --accent:#22d3ee; --bg1:#03121a; --bg2:#0b2b3a; --card:rgba(255,255,255,0.06); }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -177,6 +179,8 @@ const char DASHBOARD_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
   input:disabled, button:disabled { opacity:.45; cursor:not-allowed; }
   .card.locked .lockable { opacity:.35; pointer-events:none; }
   .card.locked { cursor:pointer; }
+  .card.mode-locked .lockable { opacity:.35; pointer-events:none; }
+  .card.mode-locked { cursor:pointer; }
   #logBox {
     margin-top:12px; background:#01090d; border-radius:10px; padding:10px;
     height:180px; overflow-y:auto; font-family:ui-monospace,Menlo,monospace;
@@ -214,6 +218,18 @@ const char DASHBOARD_HTML[] PROGMEM = R"HTML(<!DOCTYPE html>
     <div class="status-row">
       <span class="status-label"></span>
       <button class="action" id="syncTimeBtn" style="padding:6px 12px;font-size:.75rem;">Sync time from phone</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Color mode</h2>
+    <div class="toggle">
+      <span class="status-label">Preset</span>
+      <label class="switch">
+        <input type="checkbox" id="colorModeToggle">
+        <span class="slider-toggle"></span>
+      </label>
+      <span class="status-label">Gradient</span>
     </div>
   </div>
 
@@ -475,7 +491,23 @@ $('syncTimeBtn').addEventListener('click', () => {
 ['presetCard','whiteCard','rgbCard'].forEach(id => {
   $(id).addEventListener('click', () => {
     if ($(id).classList.contains('locked')) toast('Turn on the light to use this control');
+    else if ($(id).classList.contains('mode-locked')) toast('Switch color mode to use this control');
   });
+});
+
+const COLOR_MODE_KEY = 'colorMode';
+let colorMode = localStorage.getItem(COLOR_MODE_KEY) === 'gradient' ? 'gradient' : 'preset';
+
+function applyColorMode() {
+  $('presetCard').classList.toggle('mode-locked', colorMode === 'gradient');
+  $('rgbCard').classList.toggle('mode-locked', colorMode === 'preset');
+  $('colorModeToggle').checked = colorMode === 'gradient';
+}
+
+$('colorModeToggle').addEventListener('change', (e) => {
+  colorMode = e.target.checked ? 'gradient' : 'preset';
+  localStorage.setItem(COLOR_MODE_KEY, colorMode);
+  applyColorMode();
 });
 
 $('logToggle').addEventListener('change', (e) => {
@@ -499,6 +531,7 @@ $('logToggle').addEventListener('change', (e) => {
 
 setupColorSquare();
 updateColorPreview();
+applyColorMode();
 refreshStatus();
 setInterval(refreshStatus, 3000);
 setInterval(tickClock, 1000);
@@ -542,7 +575,7 @@ void WebDashboard::begin(StateManager *stateManager, RtcManager *rtcManager) {
     Logger::log("WiFi connect failed/timed out - check WIFI_SSID/WIFI_PASSWORD in Config.h");
   }
 
-  g_logSocket.setAuthentication(WEB_AUTH_USERNAME, WEB_AUTH_PASSWORD);
+  if (WEB_AUTH_ENABLED) g_logSocket.setAuthentication(WEB_AUTH_USERNAME, WEB_AUTH_PASSWORD);
   g_logSocket.onEvent(onWsEvent);
   g_server.addHandler(&g_logSocket);
   Logger::attachWebSink(pushLogToWeb);
