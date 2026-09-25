@@ -25,5 +25,9 @@ public:
   uint16_t pixelCount() const;
 
 private:
+  // Scales each channel by its RGB_CHANNEL_*_SCALE factor (see Config.h) to
+  // correct the strip's green/blue-heavy white balance.
+  static void applyWhiteBalance(uint8_t &r, uint8_t &g, uint8_t &b);
+
   Adafruit_NeoPixel strip;
 };

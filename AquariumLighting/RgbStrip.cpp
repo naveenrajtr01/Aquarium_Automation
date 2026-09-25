@@ -22,6 +22,7 @@ void RgbStrip::setColorPercent(uint8_t redPercent, uint8_t greenPercent, uint8_t
   uint8_t r = (255 * clampedRed + 50) / 100;
   uint8_t g = (255 * clampedGreen + 50) / 100;
   uint8_t b = (255 * clampedBlue + 50) / 100;
+  applyWhiteBalance(r, g, b);
   uint32_t color = strip.Color(r, g, b);
 
   for (uint16_t i = 0; i < strip.numPixels(); i++) {
@@ -35,7 +36,14 @@ void RgbStrip::off() {
 }
 
 void RgbStrip::setPixelRGB(uint16_t index, uint8_t r, uint8_t g, uint8_t b) {
+  applyWhiteBalance(r, g, b);
   strip.setPixelColor(index, strip.Color(r, g, b));
+}
+
+void RgbStrip::applyWhiteBalance(uint8_t &r, uint8_t &g, uint8_t &b) {
+  r = (uint16_t)r * RGB_CHANNEL_R_SCALE / 255;
+  g = (uint16_t)g * RGB_CHANNEL_G_SCALE / 255;
+  b = (uint16_t)b * RGB_CHANNEL_B_SCALE / 255;
 }
 
 void RgbStrip::show() {
