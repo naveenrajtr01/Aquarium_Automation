@@ -90,7 +90,7 @@ void StateManager::startScheduledSequence() {
   whitePercent = 0;
   whiteStrip->off();
   outputsDirty = true;
-  Logger::log("Scheduled animation started (10s)");
+  Logger::logf("Scheduled animation started (%lus)", SCHEDULE_ANIMATION_MS / 1000UL);
 }
 
 void StateManager::update() {

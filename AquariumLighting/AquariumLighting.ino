@@ -106,7 +106,7 @@ void loop() {
   webDashboard.update();
 
   // Bare-bones reachability probe, independent of AsyncTCP/ESPAsyncWebServer.
-  WiFiClient diagClient = diagServer.available();
+  WiFiClient diagClient = diagServer.accept();
   if (diagClient) {
     Logger::logf("Diagnostic TCP client connected from %s", diagClient.remoteIP().toString().c_str());
     diagClient.print("OK\n");

@@ -36,10 +36,18 @@ public:
   uint8_t getScheduleHour() const { return scheduleHour; }
   uint8_t getScheduleMinute() const { return scheduleMinute; }
 
-  // Current time as "YYYY-MM-DD HH:MM:SS". isTimeValid() is false if the
-  // RTC has never been set accurately (still on the compile-time fallback).
-  String getTimeString();
-  bool isTimeValid();
+  // Current time as "YYYY-MM-DD HH:MM:SS", cached from the last update()
+  // call. isTimeValid() is false if the RTC has never been set accurately
+  // (still on the compile-time fallback).
+  //
+  // Both read the cache rather than touching the RTC directly: WebDashboard
+  // calls these from the AsyncWebServer callback task, a different task
+  // than the main loop() - concurrent unsynchronized I2C/Wire transactions
+  // from two tasks corrupted RTClib's status-register reads and caused
+  // spurious alarm-fired detections whenever the dashboard was open polling
+  // /api/status. Only update() (called from loop()) touches the RTC.
+  String getTimeString() const { return cachedTimeString; }
+  bool isTimeValid() const { return cachedTimeValid; }
 
 private:
   void loadScheduleFromStorage();
@@ -50,4 +58,6 @@ private:
   bool alarmPending = false;
   uint8_t scheduleHour = SCHEDULE_HOUR;
   uint8_t scheduleMinute = SCHEDULE_MINUTE;
+  String cachedTimeString = "1970-01-01 00:00:00";
+  bool cachedTimeValid = false;
 };

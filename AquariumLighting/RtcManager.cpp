@@ -28,6 +28,17 @@ void RtcManager::update() {
     alarmPending = true;
     Logger::logf("RTC alarm fired at %s", rtc.now().timestamp().c_str());
   }
+
+  // Only place that touches the RTC/Wire bus besides begin()/setEpoch()/
+  // armAlarm() - keeps all I2C access on this one task. See getTimeString()/
+  // isTimeValid() comments in the header for why.
+  char buf[24];
+  DateTime now = rtc.now();
+  snprintf(buf, sizeof(buf), "%04d-%02d-%02d %02d:%02d:%02d",
+           now.year(), now.month(), now.day(),
+           now.hour(), now.minute(), now.second());
+  cachedTimeString = buf;
+  cachedTimeValid = !rtc.lostPower();
 }
 
 bool RtcManager::consumeScheduledTrigger() {
@@ -47,19 +58,6 @@ void RtcManager::setScheduleTime(uint8_t hour, uint8_t minute) {
   scheduleMinute = minute;
   saveScheduleToStorage();
   armAlarm();
-}
-
-String RtcManager::getTimeString() {
-  char buf[24];
-  DateTime now = rtc.now();
-  snprintf(buf, sizeof(buf), "%04d-%02d-%02d %02d:%02d:%02d",
-           now.year(), now.month(), now.day(),
-           now.hour(), now.minute(), now.second());
-  return String(buf);
-}
-
-bool RtcManager::isTimeValid() {
-  return !rtc.lostPower();
 }
 
 void RtcManager::loadScheduleFromStorage() {

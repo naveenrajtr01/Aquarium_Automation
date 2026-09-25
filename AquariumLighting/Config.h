@@ -32,7 +32,7 @@
 
 // ---- Buzzer (mode-change feedback) ----
 #define BUZZER_PIN                 32      // Active-high buzzer module
-#define BUZZER_BEEP_MS             300UL   // Beep length on power-on and any mode change
+#define BUZZER_BEEP_MS             100UL   // Beep length on power-on and any mode change
 
 // ---- DS3231 real-time clock (I2C) ----
 #define RTC_SDA_PIN                21
@@ -46,7 +46,7 @@
 #define SCHEDULE_HOUR              18      // 24-hour format - 18 = 6:00 PM
 #define SCHEDULE_MINUTE            0
 #define SCHEDULE_SECOND            0
-#define SCHEDULE_ANIMATION_MS      10000UL // rainbow animation duration
+#define SCHEDULE_ANIMATION_MS      5000UL  // rainbow animation duration
 #define SCHEDULE_ANIMATION_FRAME_MS   30UL // redraw interval during the animation
 #define SCHEDULE_ANIMATION_ROTATE_MS   8UL // ms per hue-wheel step (lower = faster spin)
 #define SCHEDULE_FADEIN_MS         2000UL  // gradual glow-up duration after the animation
