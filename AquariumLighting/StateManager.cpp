@@ -26,6 +26,8 @@ void StateManager::begin(WhiteStrip *whiteStripPtr, RgbStrip *rgbStripPtr, Buzze
   rgbStrip = rgbStripPtr;
   buzzer = buzzerPtr;
   loadPresetIndexFromStorage();
+  loadWhiteBalanceFromStorage();
+  rgbStrip->setWhiteBalance(wbRedScale, wbGreenScale, wbBlueScale);
 }
 
 void StateManager::applyInitialState(bool switchClosedAtBoot) {
@@ -94,12 +96,25 @@ void StateManager::startScheduledSequence() {
 
 void StateManager::update() {
   bool applyNow = false;
+  bool wbApplyNow = false;
   uint8_t whiteSnap = 0, redSnap = 0, greenSnap = 0, blueSnap = 0;
+  uint8_t wbRSnap = 0, wbGSnap = 0, wbBSnap = 0;
   portENTER_CRITICAL(&percentMux);
   if (pendingHwApply) {
     pendingHwApply = false;
     applyNow = true;
     whiteSnap = whitePercent;
+    redSnap = redPercent;
+    greenSnap = greenPercent;
+    blueSnap = bluePercent;
+  }
+  if (wbPendingApply) {
+    wbPendingApply = false;
+    wbApplyNow = true;
+    wbRSnap = wbRedScale;
+    wbGSnap = wbGreenScale;
+    wbBSnap = wbBlueScale;
+    // Repaint the currently active color under the new balance too.
     redSnap = redPercent;
     greenSnap = greenPercent;
     blueSnap = bluePercent;
@@ -110,6 +125,14 @@ void StateManager::update() {
     whiteStrip->setBrightnessPercent(whiteSnap);
     rgbStrip->setColorPercent(redSnap, greenSnap, blueSnap);
     lastRgbRefreshMs = millis();
+  }
+
+  if (wbApplyNow) {
+    rgbStrip->setWhiteBalance(wbRSnap, wbGSnap, wbBSnap);
+    if (lightOn) {
+      rgbStrip->setColorPercent(redSnap, greenSnap, blueSnap);
+      lastRgbRefreshMs = millis();
+    }
   }
 
   unsigned long now = millis();
@@ -239,6 +262,22 @@ void StateManager::beep() {
   if (buzzer) buzzer->beep();
 }
 
+void StateManager::setWhiteBalance(uint8_t rScale, uint8_t gScale, uint8_t bScale, bool save) {
+  portENTER_CRITICAL(&percentMux);
+  wbRedScale = rScale;
+  wbGreenScale = gScale;
+  wbBlueScale = bScale;
+  wbPendingApply = true;
+  portEXIT_CRITICAL(&percentMux);
+  if (save) saveWhiteBalanceToStorage();
+}
+
+void StateManager::getWhiteBalance(uint8_t &rScale, uint8_t &gScale, uint8_t &bScale) const {
+  rScale = wbRedScale;
+  gScale = wbGreenScale;
+  bScale = wbBlueScale;
+}
+
 bool StateManager::setPresetIndex(uint8_t index) {
   if (!lightOn) return false;
   if (index >= NUM_PRESETS) return false;
@@ -272,6 +311,24 @@ void StateManager::savePresetIndexToStorage() {
   Preferences prefs;
   prefs.begin(PREFS_NAMESPACE, false); // read-write
   prefs.putUChar(PREFS_KEY_PRESET_INDEX, presetIndex);
+  prefs.end();
+}
+
+void StateManager::loadWhiteBalanceFromStorage() {
+  Preferences prefs;
+  prefs.begin(PREFS_NAMESPACE, true); // read-only
+  wbRedScale = prefs.getUChar(PREFS_KEY_WB_RED, RGB_CHANNEL_R_SCALE);
+  wbGreenScale = prefs.getUChar(PREFS_KEY_WB_GREEN, RGB_CHANNEL_G_SCALE);
+  wbBlueScale = prefs.getUChar(PREFS_KEY_WB_BLUE, RGB_CHANNEL_B_SCALE);
+  prefs.end();
+}
+
+void StateManager::saveWhiteBalanceToStorage() {
+  Preferences prefs;
+  prefs.begin(PREFS_NAMESPACE, false); // read-write
+  prefs.putUChar(PREFS_KEY_WB_RED, wbRedScale);
+  prefs.putUChar(PREFS_KEY_WB_GREEN, wbGreenScale);
+  prefs.putUChar(PREFS_KEY_WB_BLUE, wbBlueScale);
   prefs.end();
 }
 

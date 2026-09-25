@@ -21,10 +21,12 @@
 // mixed color reads green/blue-shifted (e.g. gold/amber looked greenish,
 // warm white looked blueish) - the classic WS2812 symptom of green (then
 // blue) LEDs being visually brighter than red at equal 0-255 values.
-// These are FastLED's well-known "TypicalLEDStrip" correction factors
-// (0xFFB0F0), applied as a per-channel scale-down before writing to the
-// strip. Re-tune per-channel (retest with the same gold/amber/warm-white
-// values) if colors still look off.
+// FastLED's well-known "TypicalLEDStrip" factors (0xFFB0F0) were tried as
+// static values first and weren't a strong enough correction for this
+// strip - these are now just the initial/fallback defaults; the real
+// values are live-tunable from the dashboard's calibration sliders and
+// persisted in NVS (see PREFS_KEY_WB_* below), so they no longer need a
+// firmware reflash to adjust.
 #define RGB_CHANNEL_R_SCALE        255
 #define RGB_CHANNEL_G_SCALE        176
 #define RGB_CHANNEL_B_SCALE        240
@@ -81,6 +83,9 @@
 #define PREFS_KEY_SCHEDULE_HOUR    "schedHour"
 #define PREFS_KEY_SCHEDULE_MINUTE  "schedMin"
 #define PREFS_KEY_SCHEDULE_ENABLED "schedEn"
+#define PREFS_KEY_WB_RED           "wbRed"
+#define PREFS_KEY_WB_GREEN         "wbGreen"
+#define PREFS_KEY_WB_BLUE          "wbBlue"
 
 // ---- WiFi (for the on-device web dashboard) ----
 #define WIFI_SSID                  "YOUR_WIFI_SSID"      // <-- CHANGE THIS

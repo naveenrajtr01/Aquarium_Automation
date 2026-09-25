@@ -3,6 +3,7 @@
 #include "WhiteStrip.h"
 #include "RgbStrip.h"
 #include "Buzzer.h"
+#include "Config.h"
 
 // Owns the light's overall behavior: which preset is active, on/off state,
 // persistence of the last-used preset, and applying/overriding values on the
@@ -50,6 +51,15 @@ public:
   // strips (e.g. schedule save/enable toggle).
   void beep();
 
+  // Live RGB channel-balance calibration (see RGB_CHANNEL_*_SCALE in
+  // Config.h) - always takes effect immediately (repainting the current
+  // color if the light is on) regardless of on/off state, since it's a
+  // calibration tool rather than a normal color control. Pass save=true
+  // to also persist to NVS (called on slider release, not every drag tick,
+  // to limit flash wear).
+  void setWhiteBalance(uint8_t rScale, uint8_t gScale, uint8_t bScale, bool save);
+  void getWhiteBalance(uint8_t &rScale, uint8_t &gScale, uint8_t &bScale) const;
+
   // Always reflect what the strips currently show (or, while off, what
   // they will show again once switched back on).
   bool isOn() const { return lightOn; }
@@ -62,6 +72,8 @@ public:
 private:
   void loadPresetIndexFromStorage();
   void savePresetIndexToStorage();
+  void loadWhiteBalanceFromStorage();
+  void saveWhiteBalanceToStorage();
   void applyPresetValues();   // load presetIndex's values into whitePercent/r/g/b
   void pushValuesToOutputs(); // write whitePercent/r/g/b to the physical strips
   void pushOffToOutputs();
@@ -96,6 +108,12 @@ private:
   uint8_t fadeTargetBlue = 0;
 
   bool pendingHwApply = false; // set by web-task setters, applied in update()
+
+  // RGB channel-balance calibration, live-tunable from the dashboard.
+  uint8_t wbRedScale = RGB_CHANNEL_R_SCALE;
+  uint8_t wbGreenScale = RGB_CHANNEL_G_SCALE;
+  uint8_t wbBlueScale = RGB_CHANNEL_B_SCALE;
+  bool wbPendingApply = false; // set by setWhiteBalance(), applied in update()
 
   // Last time the RGB strip's current color (on or off) was re-sent purely
   // to self-heal any transient WS2812 transmission glitch - see

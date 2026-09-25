@@ -40,10 +40,22 @@ void RgbStrip::setPixelRGB(uint16_t index, uint8_t r, uint8_t g, uint8_t b) {
   strip.setPixelColor(index, strip.Color(r, g, b));
 }
 
-void RgbStrip::applyWhiteBalance(uint8_t &r, uint8_t &g, uint8_t &b) {
-  r = (uint16_t)r * RGB_CHANNEL_R_SCALE / 255;
-  g = (uint16_t)g * RGB_CHANNEL_G_SCALE / 255;
-  b = (uint16_t)b * RGB_CHANNEL_B_SCALE / 255;
+void RgbStrip::applyWhiteBalance(uint8_t &r, uint8_t &g, uint8_t &b) const {
+  r = (uint16_t)r * wbRedScale / 255;
+  g = (uint16_t)g * wbGreenScale / 255;
+  b = (uint16_t)b * wbBlueScale / 255;
+}
+
+void RgbStrip::setWhiteBalance(uint8_t rScale, uint8_t gScale, uint8_t bScale) {
+  wbRedScale = rScale;
+  wbGreenScale = gScale;
+  wbBlueScale = bScale;
+}
+
+void RgbStrip::getWhiteBalance(uint8_t &rScale, uint8_t &gScale, uint8_t &bScale) const {
+  rScale = wbRedScale;
+  gScale = wbGreenScale;
+  bScale = wbBlueScale;
 }
 
 void RgbStrip::show() {

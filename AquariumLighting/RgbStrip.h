@@ -24,10 +24,18 @@ public:
   void show();
   uint16_t pixelCount() const;
 
+  // Live-tunable per-channel correction (see RGB_CHANNEL_*_SCALE in
+  // Config.h) - lets the dashboard's calibration sliders re-tint the
+  // strip without a reflash, since the right values vary per strip.
+  void setWhiteBalance(uint8_t rScale, uint8_t gScale, uint8_t bScale);
+  void getWhiteBalance(uint8_t &rScale, uint8_t &gScale, uint8_t &bScale) const;
+
 private:
-  // Scales each channel by its RGB_CHANNEL_*_SCALE factor (see Config.h) to
-  // correct the strip's green/blue-heavy white balance.
-  static void applyWhiteBalance(uint8_t &r, uint8_t &g, uint8_t &b);
+  // Scales each channel by its current white-balance factor.
+  void applyWhiteBalance(uint8_t &r, uint8_t &g, uint8_t &b) const;
 
   Adafruit_NeoPixel strip;
+  uint8_t wbRedScale = RGB_CHANNEL_R_SCALE;
+  uint8_t wbGreenScale = RGB_CHANNEL_G_SCALE;
+  uint8_t wbBlueScale = RGB_CHANNEL_B_SCALE;
 };
