@@ -28,7 +28,7 @@ void writeUint8AndNotify(BLECharacteristic *ch, uint8_t value) {
 }
 
 void writeStringAndNotify(BLECharacteristic *ch, const String &value) {
-  ch->setValue(std::string(value.c_str()));
+  ch->setValue(value);
   ch->notify();
 }
 
