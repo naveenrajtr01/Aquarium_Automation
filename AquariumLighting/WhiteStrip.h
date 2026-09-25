@@ -10,9 +10,4 @@ public:
   // percent is clamped to 0-100.
   void setBrightnessPercent(uint8_t percent);
   void off();
-
-  uint8_t getBrightnessPercent() const { return currentPercent; }
-
-private:
-  uint8_t currentPercent = 0;
 };

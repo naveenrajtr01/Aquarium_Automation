@@ -20,9 +20,15 @@ BLECharacteristic *g_greenChar = nullptr;
 BLECharacteristic *g_blueChar = nullptr;
 BLECharacteristic *g_setTimeChar = nullptr;
 BLECharacteristic *g_logChar = nullptr;
+BLECharacteristic *g_ipChar = nullptr;
 
 void writeUint8AndNotify(BLECharacteristic *ch, uint8_t value) {
   ch->setValue(&value, 1);
+  ch->notify();
+}
+
+void writeStringAndNotify(BLECharacteristic *ch, const String &value) {
+  ch->setValue(std::string(value.c_str()));
   ch->notify();
 }
 
@@ -218,6 +224,14 @@ void BleController::begin(
 
   g_logChar->addDescriptor(new BLE2902());
 
+  g_ipChar = service->createCharacteristic(
+      CHAR_IP_UUID,
+      BLECharacteristic::PROPERTY_READ |
+      BLECharacteristic::PROPERTY_NOTIFY);
+
+  g_ipChar->addDescriptor(new BLE2902());
+  writeStringAndNotify(g_ipChar, "Not connected");
+
   service->start();
 
   BLEAdvertising *advertising =
@@ -268,4 +282,9 @@ void BleController::refreshAll() {
   writeUint8AndNotify(
       g_blueChar,
       g_stateManager->getBluePercent());
+}
+
+void BleController::updateIpAddress(const String &ip) {
+  if (!g_ipChar) return;
+  writeStringAndNotify(g_ipChar, ip);
 }

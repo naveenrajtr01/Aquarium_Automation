@@ -16,4 +16,8 @@ public:
   // Push the current StateManager values into every characteristic and
   // notify connected clients. Call after any switch-triggered state change.
   void refreshAll();
+
+  // Push the current WiFi IP (or "Not connected") into its characteristic
+  // and notify connected clients. Call periodically from loop().
+  void updateIpAddress(const String &ip);
 };

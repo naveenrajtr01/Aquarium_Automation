@@ -69,7 +69,6 @@
 #define WEB_SERVER_PORT            80
 #define WEB_AUTH_USERNAME          "admin"
 #define WEB_AUTH_PASSWORD          "admin"
-#define DASHBOARD_TITLE            "Koi Tank Controls"
 #define DASHBOARD_MDNS_HOSTNAME    "koitank"              // http://koitank.local/
 
 // ---- Bluetooth Low Energy ----
@@ -85,3 +84,4 @@
 #define CHAR_BLUE_UUID     "73d9d82e-de50-424b-b91b-bd90e502758a"  // read+write+notify, uint8 0-100 (%)
 #define CHAR_SETTIME_UUID  "8f2ac0d1-3e1a-4c8b-9a2f-6b1d5e8c4a2b"  // write, uint32 little-endian Unix epoch seconds
 #define CHAR_LOG_UUID      "b3d9a6e2-7c44-4b6a-9a3d-1f6e2c9a7d10"  // read+notify, UTF-8 text log line (mirrors Serial output)
+#define CHAR_IP_UUID       "5a2c9e14-6f3b-4b8a-9d21-3c7e8a4f9b60"  // read+notify, UTF-8 text WiFi IP address (or "Not connected")

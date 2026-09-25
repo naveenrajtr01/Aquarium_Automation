@@ -10,13 +10,13 @@ void RgbStrip::begin() {
 }
 
 void RgbStrip::setColorPercent(uint8_t redPercent, uint8_t greenPercent, uint8_t bluePercent) {
-  currentRedPercent = min<uint8_t>(redPercent, 100);
-  currentGreenPercent = min<uint8_t>(greenPercent, 100);
-  currentBluePercent = min<uint8_t>(bluePercent, 100);
+  uint8_t clampedRed = min<uint8_t>(redPercent, 100);
+  uint8_t clampedGreen = min<uint8_t>(greenPercent, 100);
+  uint8_t clampedBlue = min<uint8_t>(bluePercent, 100);
 
-  uint8_t r = (255 * currentRedPercent) / 100;
-  uint8_t g = (255 * currentGreenPercent) / 100;
-  uint8_t b = (255 * currentBluePercent) / 100;
+  uint8_t r = (255 * clampedRed) / 100;
+  uint8_t g = (255 * clampedGreen) / 100;
+  uint8_t b = (255 * clampedBlue) / 100;
   uint32_t color = strip.Color(r, g, b);
 
   for (uint16_t i = 0; i < strip.numPixels(); i++) {

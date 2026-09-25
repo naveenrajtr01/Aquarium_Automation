@@ -98,6 +98,7 @@ All values are a single unsigned byte (`uint8`).
 | Blue            | `73d9d82e-de50-424b-b91b-bd90e502758a` | Read, Write, Notify  | `0`-`100` (%)                              |
 | Set Time        | `8f2ac0d1-3e1a-4c8b-9a2f-6b1d5e8c4a2b` | Write                | `uint32`, little-endian Unix epoch seconds |
 | Debug Log       | `b3d9a6e2-7c44-4b6a-9a3d-1f6e2c9a7d10` | Read, Notify         | UTF-8 text, one log line per notification  |
+| WiFi IP address | `5a2c9e14-6f3b-4b8a-9d21-3c7e8a4f9b60` | Read, Notify         | UTF-8 text, e.g. `192.168.1.42` or `Not connected` |
 
 Notes:
 - All read/notify characteristics have a CCCD (`0x2902`) so an app can
@@ -121,6 +122,10 @@ Notes:
   lines that are printed to the Serial monitor (setup steps, switch/preset
   changes, schedule events, RTC time, every accepted/rejected BLE write,
   etc.) - useful for checking behavior without a USB connection.
+- **WiFi IP address**: subscribe to this characteristic to read the web
+  dashboard's current IP without needing a Serial connection. It starts as
+  `Not connected` at boot and updates once WiFi connects, then again every
+  minute (the same cadence the Debug Log reports WiFi status on).
 
 ## Web Dashboard (Koi Tank Controls)
 
@@ -238,7 +243,11 @@ which writes to both:
 6. Open `AquariumLighting/AquariumLighting.ino` in the Arduino IDE.
 7. Set `WIFI_SSID`/`WIFI_PASSWORD` in `Config.h` for the web dashboard (see
    [Web Dashboard](#web-dashboard-koi-tank-controls) above).
-8. Select your ESP32 board and port under Tools, then Upload.
+8. Select your ESP32 board and port under Tools, then set **Tools > Partition
+   Scheme** to **"Huge APP (3MB No OTA/1MB SPIFFS)"** (or "No OTA (2MB
+   APP/2MB SPIFFS)"). The combined WiFi+BLE+web server binary (~1.8MB)
+   doesn't fit in the default "with spiffs" scheme's 1.2MB app slot - this
+   project doesn't use SPIFFS/LittleFS, so that space isn't needed anyway.
 9. Adjust `RGB_LED_COUNT` and any pin numbers in `Config.h` to match your
    hardware before uploading.
 10. After the first upload, write the current time to the **Set Time** BLE

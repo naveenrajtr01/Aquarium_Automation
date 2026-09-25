@@ -24,13 +24,6 @@ public:
   void show();
   uint16_t pixelCount() const;
 
-  uint8_t getRedPercent() const { return currentRedPercent; }
-  uint8_t getGreenPercent() const { return currentGreenPercent; }
-  uint8_t getBluePercent() const { return currentBluePercent; }
-
 private:
   Adafruit_NeoPixel strip;
-  uint8_t currentRedPercent = 0;
-  uint8_t currentGreenPercent = 0;
-  uint8_t currentBluePercent = 0;
 };

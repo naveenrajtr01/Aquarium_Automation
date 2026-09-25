@@ -16,6 +16,7 @@
 //   - Preferences.h, Wire.h, BLEDevice.h and friends, WiFi.h, ESPmDNS.h
 // ---------------------------------------------------------------------------
 
+#include <WiFi.h>
 #include "Config.h"
 #include "WhiteStrip.h"
 #include "RgbStrip.h"
@@ -92,6 +93,17 @@ void loop() {
   stateManager.update();
 
   webDashboard.update();
+
+  // WiFi connects during webDashboard.begin() and may drop/reconnect later;
+  // report status+IP on a slow cadence rather than flooding the log.
+  static unsigned long lastWifiLogMs = 0;
+  if (millis() - lastWifiLogMs >= 60000UL) {
+    lastWifiLogMs = millis();
+    bool connected = (WiFi.status() == WL_CONNECTED);
+    String ip = connected ? WiFi.localIP().toString() : "Not connected";
+    Logger::logf("WiFi status: %s, IP: %s", connected ? "CONNECTED" : "DISCONNECTED", ip.c_str());
+    bleController.updateIpAddress(ip);
+  }
 
   // The scheduled animation's fade-in changes white/RGB values continuously;
   // throttle how often that reaches BLE so the notify queue isn't flooded.
