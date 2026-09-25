@@ -67,7 +67,10 @@ void setup() {
   // never advance it, regardless of which position the switch is in.
   stateManager.applyInitialState(switchInput.isClosed());
 
-  bleController.begin(&stateManager, &rtcManager);
+  // TEMP diagnostic: skip BLE init to test whether it's contending with
+  // AsyncTCP for heap/tasks and preventing its listener from coming up.
+  // Revert once port 8080/80 is confirmed working or ruled out.
+  // bleController.begin(&stateManager, &rtcManager);
 
   // Web dashboard is entirely additive - separate from and does not change
   // the BLE control path above.
